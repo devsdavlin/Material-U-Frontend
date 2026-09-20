@@ -5,7 +5,7 @@ import { MOCK_USUARIOS } from '../mocks/usuarios';
 
 interface AuthContextType {
   usuario: Usuario | null;
-  login: (email: string) => boolean;
+  login: (email: string, password: string) => boolean;
   logout: () => void;
   cambiarRolSimulado: (idUsuario: string) => void;
 }
@@ -13,11 +13,12 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Inicializamos con el Administrador por defecto para desarrollar rápido
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [usuario, setUsuario] = useState<Usuario | null>(MOCK_USUARIOS[1]);
 
-  const login = (email: string): boolean => {
-    const userFound = MOCK_USUARIOS.find((u) => u.email === email);
+  const login = (email: string, password: string): boolean => {
+    const userFound = MOCK_USUARIOS.find(
+      (u) => u.email === email && u.password === password
+    );
     if (userFound) {
       setUsuario(userFound);
       return true;

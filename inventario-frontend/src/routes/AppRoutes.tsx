@@ -1,22 +1,22 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { ProtectedRoute } from './ProtectedRoute';
-import { MainLayout } from '../layouts/MainLayout/MainLayout';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { Login } from '../pages/Login/Login';
+import { Dashboard } from '../pages/Dashboard/Dashboard';
+import { Inventario } from '../pages/Inventario/Inventario';
+import { Entradas } from '../pages/Entradas/Entradas';
+import { Salidas } from '../pages/Salidas/Salidas';
+import { Materiales } from '../pages/Materiales/Materiales';
+import { MainLayout } from '../layouts/MainLayout/MainLayout';
+import { ProtectedRoute } from './ProtectedRoute';
 
-const Dashboard = () => <div><h1>Dashboard Principal</h1></div>;
-const Inventario = () => <div><h1>Control de Inventario</h1></div>;
-const Entradas = () => <div><h1>Registro de Entradas</h1></div>;
-const Salidas = () => <div><h1>Registro de Salidas</h1></div>;
-const Materiales = () => <div><h1>Catálogo de Materiales</h1></div>;
 const Sedes = () => <div><h1>Gestión de Sedes</h1></div>;
 const Usuarios = () => <div><h1>Gestión de Usuarios</h1></div>;
 
 export const AppRoutes = () => {
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
 
-      {/* Rutas integradas con la barra lateral */}
       <Route
         element={
           <ProtectedRoute>
