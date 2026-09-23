@@ -16,6 +16,8 @@ export interface EntradaRegistro {
   codigoMig: string;
   fecha: string;
   materialId: string;
+  internal_code?: string;
+  entry_number?: string;
   descripcion: string;
   proveedor: string;
   cantidad: number;
@@ -28,10 +30,14 @@ export interface SalidaRegistro {
   codigoVale: string;
   fecha: string;
   materialId: string;
+  internal_code?: string;
+  exit_number?: string;
   descripcion: string;
   centroCosto: string;
+  cost_center?: string;
   cantidad: number;
   unidadMedida: string;
+  unit_value?: number;
   registradoPor: string;
 }
 

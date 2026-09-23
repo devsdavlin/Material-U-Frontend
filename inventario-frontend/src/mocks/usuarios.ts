@@ -2,18 +2,19 @@ import type { Usuario } from '../types/Usuario';
 
 export const MOCK_USUARIOS: Usuario[] = [
   {
-    id: 'u1',
-    nombre: 'Administrador General',
+    id_user: 'u1',
+    name: 'Administrador General',
     email: 'admin@empresa.com',
     password: 'admin123',
-    rol: 'ADMINISTRADOR',
+    rol: 'Administrador',
+    warehouse_id: 1,
   },
   {
-    id: 'u2',
-    nombre: 'Encargado',
-    email: 'encargado@empresa.com',
-    password: 'encargado123',
-    rol: 'ENCARGADO_SEDE',
-    sedeId: '1',
+    id_user: 'u2',
+    name: 'Encargado',
+    email: 'almacenista.prueba@gmail.com',
+    password: 'Almacen123',
+    rol: 'Almacenista',
+    warehouse_id: 1,
   },
 ];

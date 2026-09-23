@@ -33,7 +33,7 @@ export const AppRoutes = () => {
         <Route
           path="/sedes"
           element={
-            <ProtectedRoute rolesPermitidos={['ADMINISTRADOR']}>
+            <ProtectedRoute rolesPermitidos={['Administrador']}>
               <Sedes />
             </ProtectedRoute>
           }
@@ -41,7 +41,7 @@ export const AppRoutes = () => {
         <Route
           path="/usuarios"
           element={
-            <ProtectedRoute rolesPermitidos={['ADMINISTRADOR']}>
+            <ProtectedRoute rolesPermitidos={['Administrador']}>
               <Usuarios />
             </ProtectedRoute>
           }

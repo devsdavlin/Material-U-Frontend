@@ -9,9 +9,10 @@ export const Login: React.FC = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (login(email, password)) { // 👈 Pasa correo y contraseña
+    const success = await login(email, password);
+    if (success) {
       navigate('/dashboard');
     } else {
       setError(true);

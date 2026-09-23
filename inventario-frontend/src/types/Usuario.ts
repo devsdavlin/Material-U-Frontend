@@ -1,10 +1,10 @@
-export type RolUsuario = 'ADMINISTRADOR' | 'ENCARGADO_SEDE';
+export type RolUsuario = 'Administrador' | 'Almacenista';
 
 export interface Usuario {
-  id: string;
-  nombre: string;
+  id_user: string;
+  name: string;
   email: string;
-  password: string;
   rol: RolUsuario;
-  sedeId?: string;
+  warehouse_id?: number | null;
+  password?: string;
 }

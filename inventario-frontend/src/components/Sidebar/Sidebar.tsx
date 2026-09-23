@@ -24,9 +24,9 @@ export const Sidebar: React.FC = () => {
       </h2>
       
       <div style={{ padding: '12px', backgroundColor: '#fff', borderRadius: '10px', marginBottom: '20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-        <p style={{ margin: 0, fontWeight: 'bold', color: '#1f2937', fontSize: '0.9rem' }}>{usuario?.nombre}</p>
+        <p style={{ margin: 0, fontWeight: 'bold', color: '#1f2937', fontSize: '0.9rem' }}>{usuario?.name}</p>
         <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '0.8rem' }}>
-          Rol: <strong style={{ color: '#344e41' }}>{usuario?.rol === 'ADMINISTRADOR' ? 'ADMINISTRADOR' : 'ENCARGADO_SEDE'}</strong>
+          Rol: <strong style={{ color: '#344e41' }}>{usuario?.rol === 'Administrador' ? 'Administrador' : 'Almacenista'}</strong>
         </p>
       </div>
 
@@ -37,7 +37,7 @@ export const Sidebar: React.FC = () => {
         <NavLink to="/salidas" style={linkStyle}>Salidas</NavLink>
         <NavLink to="/materiales" style={linkStyle}>Materiales</NavLink>
 
-        {usuario?.rol === 'ADMINISTRADOR' && (
+        {usuario?.rol === 'Administrador' && (
           <>
             <hr style={{ margin: '15px 0', borderColor: '#e5e7eb' }} />
             <NavLink to="/sedes" style={linkStyle}>Sedes</NavLink>

@@ -1,9 +1,42 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useInventario } from '../../context/InventarioContext';
 import type { Material } from '../../context/InventarioContext';
+import { obtenerMateriales, crearMaterial, desactivarMaterial, type MaterialBackend } from '../../services/materialService';
 
 export const Materiales: React.FC = () => {
-  const { materiales, agregarMaterial, eliminarMaterial, entradas, salidas } = useInventario();
+  const { agregarMaterial, eliminarMaterial, entradas, salidas } = useInventario();
+  const [materialesApi, setMaterialesApi] = useState<MaterialBackend[]>([]);
+  const [cargando, setCargando] = useState<boolean>(true);
+
+  const cargarMateriales = async () => {
+    setCargando(true);
+    try {
+      const data = await obtenerMateriales();
+      if (data && data.length > 0) {
+        setMaterialesApi(data);
+      } else {
+        // Fallback de demostración si aún no hay materiales en la base de datos
+        setMaterialesApi([
+          { id_material: 1, internal_code: 'MIG 001', material_name: 'PARRILLA ASADOR A GAS PLUS + BANDEJA LATERAL', unit: 'UN', category: 'Equipos', min_stock: 5 },
+          { id_material: 2, internal_code: 'MIG 002', material_name: 'LAVARROPAS ECO 48X60 CM FIRPLAK', unit: 'UN', category: 'Grifería', min_stock: 2 },
+          { id_material: 3, internal_code: 'MIG 003', material_name: 'CATALIZADOR EPOXICO X 1/4 TITO PABON', unit: 'GL', category: 'Pinturas', min_stock: 10 },
+        ]);
+      }
+    } catch (error) {
+      console.warn('Backend desconectado o error, usando datos de respaldo:', error);
+      setMaterialesApi([
+        { id_material: 1, internal_code: 'MIG 001', material_name: 'PARRILLA ASADOR A GAS PLUS + BANDEJA LATERAL', unit: 'UN', category: 'Equipos', min_stock: 5 },
+        { id_material: 2, internal_code: 'MIG 002', material_name: 'LAVARROPAS ECO 48X60 CM FIRPLAK', unit: 'UN', category: 'Grifería', min_stock: 2 },
+        { id_material: 3, internal_code: 'MIG 003', material_name: 'CATALIZADOR EPOXICO X 1/4 TITO PABON', unit: 'GL', category: 'Pinturas', min_stock: 10 },
+      ]);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarMateriales();
+  }, []);
 
   const [codigo, setCodigo] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -12,28 +45,75 @@ export const Materiales: React.FC = () => {
   const [stockMinimo, setStockMinimo] = useState<number | ''>('');
   const [kardexMaterial, setKardexMaterial] = useState<Material | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!codigo || !descripcion || !categoria || !stockMinimo) return;
+    if (!codigo || !descripcion || !categoria) return;
 
-    agregarMaterial({
-      codigo,
-      descripcion,
-      unidadMedida,
-      categoria,
-      stockMinimo: Number(stockMinimo),
-    });
+    try {
+      const nuevo = await crearMaterial({
+        internal_code: codigo.trim(),
+        material_name: descripcion.trim(),
+        category: categoria.trim(),
+        unit: unidadMedida,
+      });
 
-    setCodigo('');
-    setDescripcion('');
-    setCategoria('');
-    setStockMinimo('');
-    alert('¡Material registrado y disponible!');
+      // Si el backend responde exitosamente:
+      const materialCreado: MaterialBackend = {
+        id_material: nuevo?.id_material || Date.now(),
+        internal_code: codigo.trim(),
+        material_name: descripcion.trim(),
+        category: categoria.trim(),
+        unit: unidadMedida,
+        min_stock: Number(stockMinimo) || 0,
+      };
+
+      setMaterialesApi((prev) => [materialCreado, ...prev]);
+
+      // También sincronizamos con el contexto local para que esté disponible en Entradas/Salidas
+      agregarMaterial({
+        codigo: codigo.trim(),
+        descripcion: descripcion.trim(),
+        unidadMedida,
+        categoria: categoria.trim(),
+        stockMinimo: Number(stockMinimo) || 0,
+      });
+
+      setCodigo('');
+      setDescripcion('');
+      setCategoria('');
+      setStockMinimo('');
+      alert('¡Material registrado y guardado exitosamente!');
+    } catch (error: any) {
+      const msg = error.message || 'Error al registrar en el backend';
+      alert(`Aviso: ${msg}. Se agregará temporalmente a la vista.`);
+      
+      const materialFallback: MaterialBackend = {
+        id_material: Date.now(),
+        internal_code: codigo.trim(),
+        material_name: descripcion.trim(),
+        category: categoria.trim(),
+        unit: unidadMedida,
+        min_stock: Number(stockMinimo) || 0,
+      };
+      setMaterialesApi((prev) => [materialFallback, ...prev]);
+      setCodigo('');
+      setDescripcion('');
+      setCategoria('');
+      setStockMinimo('');
+    }
   };
 
-  const handleEliminar = (id: string, nombre: string) => {
-    if (window.confirm(`¿Estás segura de eliminar el material "${nombre}"?`)) {
-      eliminarMaterial(id);
+  const handleEliminar = async (id: number | string, nombre: string) => {
+    if (window.confirm(`¿Estás segura de eliminar/desactivar el material "${nombre}"?`)) {
+      try {
+        if (typeof id === 'number') {
+          await desactivarMaterial(id);
+        }
+      } catch (error: any) {
+        console.warn('No se pudo desactivar en backend:', error.message);
+      }
+      setMaterialesApi((prev) => prev.filter((m) => m.id_material !== id && (m as any).id !== id && m.internal_code !== id));
+      eliminarMaterial(String(id));
     }
   };
 
@@ -145,29 +225,50 @@ export const Materiales: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {materiales.map((item) => (
-                <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '12px', fontWeight: 'bold', color: '#344e41' }}>{item.codigo}</td>
-                  <td style={{ padding: '12px' }}>{item.descripcion}</td>
-                  <td style={{ padding: '12px', color: '#6b7280' }}>{item.unidadMedida}</td>
-                  <td style={{ padding: '12px' }}>{item.categoria}</td>
-                  <td style={{ padding: '12px', fontWeight: 'bold', color: '#f59e0b' }}>{item.stockMinimo} {item.unidadMedida}</td>
-                  <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
-                    <button
-                      onClick={() => setKardexMaterial(item)}
-                      style={{ padding: '6px 12px', backgroundColor: '#ec4899', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      Kardex
-                    </button>
-                    <button
-                      onClick={() => handleEliminar(item.id, item.descripcion)}
-                      style={{ padding: '6px 12px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      Eliminar
-                    </button>
+              {cargando ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+                    Cargando catálogo de materiales...
                   </td>
                 </tr>
-              ))}
+              ) : materialesApi.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#9ca3af' }}>
+                    No hay materiales registrados aún.
+                  </td>
+                </tr>
+              ) : (
+                materialesApi.map((item) => (
+                  <tr key={item.id_material || item.internal_code} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: '12px', fontWeight: 'bold', color: '#344e41' }}>{item.internal_code}</td>
+                    <td style={{ padding: '12px' }}>{item.material_name}</td>
+                    <td style={{ padding: '12px', color: '#6b7280' }}>{item.unit || 'UN'}</td>
+                    <td style={{ padding: '12px' }}>{item.category || '-'}</td>
+                    <td style={{ padding: '12px', fontWeight: 'bold', color: '#f59e0b' }}>{item.min_stock ?? 0} {item.unit || 'UN'}</td>
+                    <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => setKardexMaterial({
+                          id: String(item.id_material || item.internal_code),
+                          codigo: item.internal_code,
+                          descripcion: item.material_name,
+                          unidadMedida: item.unit || 'UN',
+                          categoria: item.category || '-',
+                          stockMinimo: item.min_stock ?? 0,
+                        })}
+                        style={{ padding: '6px 12px', backgroundColor: '#ec4899', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        Kardex
+                      </button>
+                      <button
+                        onClick={() => handleEliminar(item.id_material || item.internal_code, item.material_name)}
+                        style={{ padding: '6px 12px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
