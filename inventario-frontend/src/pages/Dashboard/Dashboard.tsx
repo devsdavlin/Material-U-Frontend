@@ -1,289 +1,244 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useContext, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import {
-  obtenerMiInventario,
-  type ItemInventarioBackend,
-  type ResumenInventario,
-} from '../../services/inventarioService';
+import { useInventario } from '../../context/InventarioContext';
 import { MOCK_SEDES } from '../../mocks/sedes';
+import type { ItemInventario } from '../../types/Inventario';
 
 export const Dashboard: React.FC = () => {
-  const { usuario } = useContext(AuthContext);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [items, setItems] = useState<ItemInventarioBackend[]>([]);
-  const [resumen, setResumen] = useState<ResumenInventario>({
-    total: 0,
-    con_stock: 0,
-    agotados: 0,
-    bajo_minimo: 0,
-  });
+ const { usuario } = useContext(AuthContext);
+ const { inventario = [], entradas = [], salidas = [] } = useInventario();
+ const navigate = useNavigate();
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [searchTerm]);
+ // Identificamos la sede del almacenista logueado[cite: 13]
+ const sedeIdActiva = usuario?.sedeId ?? usuario?.warehouse_id?.toString() ?? '1';
+ const sedeNombre = MOCK_SEDES.find((s) => s.id === sedeIdActiva)?.nombre || 'Almacén La Vega';
 
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        const res = await obtenerMiInventario('todos');
-        if (res) {
-          if (res.items) setItems(res.items);
-          if (res.resumen) setResumen(res.resumen);
+ // Filtramos todo solo para su sede[cite: 13]
+ const inventarioSede = useMemo<ItemInventario[]>(() => {
+   return inventario.filter((item: ItemInventario) => item.sedeId === sedeIdActiva);
+ }, [inventario, sedeIdActiva]);
+
+ // KPIs calculados[cite: 13]
+ const totalMateriales = inventarioSede.length;
+ const conStock = inventarioSede.filter((i: ItemInventario) => i.estado === 'CON_STOCK').length;
+ const agotados = inventarioSede.filter((i: ItemInventario) => i.estado === 'AGOTADO').length;
+ const negativos = inventarioSede.filter((i: ItemInventario) => i.estado === 'NEGATIVO').length;
+ const valorTotal = inventarioSede.reduce<number>((acc, i) => acc + Number(i.valorTotal || 0), 0);
+ const porcDisponible = totalMateriales > 0 ? Math.round((conStock / totalMateriales) * 100) : 100;
+
+ const topMateriales = useMemo(() => {
+   return [...inventarioSede].sort((a, b) => b.stockActual - a.stockActual).slice(0, 5);
+ }, [inventarioSede]);
+
+ return (
+   <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', backgroundColor: '#f8faf8', minHeight: '100vh', padding: '10px 0', animation: 'fadeIn 0.5s ease' }}>
+    
+     {/* 1. Header con Título y Botones Superiores[cite: 13] */}
+     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+       <div>
+         <h1 style={{ fontSize: '2.2rem', color: '#0f291e', margin: 0, fontWeight: '800', letterSpacing: '-0.5px' }}>
+           Dashboard Local
+         </h1>
+         <p style={{ color: '#6b7280', margin: '4px 0 0 0', fontSize: '0.95rem' }}>
+           Gestiona, monitorea y controla los insumos de <strong>{sedeNombre}</strong>.
+         </p>
+       </div>
+       <div style={{ display: 'flex', gap: '12px' }}>
+         <button
+           onClick={() => navigate('/entradas')}
+           style={{
+             backgroundColor: '#123b2b', color: '#fff', border: 'none', padding: '12px 20px',
+             borderRadius: '30px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem',
+             display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(18, 59, 43, 0.15)'
+           }}
+         >
+           <span>+</span> Nuevo Ingreso
+         </button>
+         <button
+           onClick={() => navigate('/salidas')}
+           style={{
+             backgroundColor: '#fff', color: '#123b2b', border: '1px solid #123b2b', padding: '12px 20px',
+             borderRadius: '30px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem'
+           }}
+         >
+           Generar Salida
+         </button>
+       </div>
+     </div>
+
+     {/* 2. Fila Superior: 4 Tarjetas KPI estilo UI[cite: 13] */}
+     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+       <div style={{ backgroundColor: '#123b2b', color: '#fff', padding: '24px', borderRadius: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '130px', boxShadow: '0 10px 20px rgba(18, 59, 43, 0.2)' }}>
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+           <span style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: '500' }}>Total Materiales</span>
+           <span style={{ backgroundColor: 'rgba(255,255,255,0.2)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>↗</span>
+         </div>
+         <div style={{ fontSize: '2.8rem', fontWeight: '800', lineHeight: 1 }}>{totalMateriales}</div>
+         <div style={{ display: 'inline-block', backgroundColor: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', width: 'fit-content' }}>Activos en catálogo</div>
+       </div>
+
+       <div style={{ backgroundColor: '#fff', color: '#0f291e', padding: '24px', borderRadius: '24px', border: '1px solid #e8ece8', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '130px' }}>
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+           <span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: '500' }}>Con Stock</span>
+           <span style={{ border: '1px solid #e5e7eb', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>↗</span>
+         </div>
+         <div style={{ fontSize: '2.8rem', fontWeight: '800', lineHeight: 1 }}>{conStock}</div>
+         <div style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 'bold' }}>🟢 Disponibles en bodega</div>
+       </div>
+
+       <div style={{ backgroundColor: '#fff', color: '#0f291e', padding: '24px', borderRadius: '24px', border: '1px solid #e8ece8', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '130px' }}>
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+           <span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: '500' }}>Agotados</span>
+           <span style={{ border: '1px solid #e5e7eb', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>↗</span>
+         </div>
+         <div style={{ fontSize: '2.8rem', fontWeight: '800', lineHeight: 1 }}>{agotados}</div>
+         <div style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 'bold' }}>⚠️ Requiere compra</div>
+       </div>
+
+       <div style={{ backgroundColor: '#fff', color: '#0f291e', padding: '24px', borderRadius: '24px', border: '1px solid #e8ece8', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '130px' }}>
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+           <span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: '500' }}>Saldo Negativo</span>
+           <span style={{ border: '1px solid #e5e7eb', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>↗</span>
+         </div>
+         <div style={{ fontSize: '2.8rem', fontWeight: '800', lineHeight: 1 }}>{negativos}</div>
+         <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 'bold' }}>🚨 Inconsistencias de saldo</div>
+       </div>
+     </div>
+
+     {/* 3. Grid Principal (2 Columnas)[cite: 13] */}
+     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+      
+       {/* COLUMNA IZQUIERDA */}
+       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 2 }}>
+        
+         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+           {/* Widget: Rotación Semanal */}
+           <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '24px', border: '1px solid #e8ece8' }}>
+             <h3 style={{ margin: '0 0 16px 0', fontSize: '1.05rem', color: '#0f291e', fontWeight: '700' }}>Rotación Semanal</h3>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: '110px', padding: '0 10px' }}>
+               {[ { day: 'D', h: '30%', active: false }, { day: 'L', h: '70%', active: true }, { day: 'M', h: '50%', active: true }, { day: 'M', h: '90%', active: true, main: true }, { day: 'J', h: '40%', active: false }, { day: 'V', h: '60%', active: false }, { day: 'S', h: '25%', active: false } ].map((bar, index) => (
+                 <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                   <div style={{ width: '28px', height: '80px', borderRadius: '15px', backgroundColor: '#f0f3f0', display: 'flex', alignItems: 'flex-end', overflow: 'hidden' }}>
+                     <div style={{ width: '100%', height: bar.h, backgroundColor: bar.main ? '#123b2b' : bar.active ? '#34785c' : '#c2d1c7', borderRadius: '15px', transition: 'height 0.4s' }} />
+                   </div>
+                   <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 'bold' }}>{bar.day}</span>
+                 </div>
+               ))}
+             </div>
+           </div>
+
+           {/* Widget: Sede Operativa (Limpio y sin botón de cambiar sede) 🌸 */}
+           <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '24px', border: '1px solid #e8ece8', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+               <div>
+                 <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '600' }}>TU SEDE ACTUAL</span>
+                 <h3 style={{ margin: '6px 0', fontSize: '1.4rem', color: '#123b2b', fontWeight: '800' }}>{sedeNombre}</h3>
+                 <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: 0 }}>
+                   Encargado: <strong>{usuario?.nombre ?? usuario?.name ?? 'Operador'}</strong>[cite: 13]
+                 </p>
+               </div>
+               <button
+                 onClick={() => navigate('/inventario')}
+                 style={{
+                   backgroundColor: '#123b2b', color: '#fff', border: 'none', padding: '12px',
+                   borderRadius: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', fontSize: '0.9rem',
+                   marginTop: '16px'
+                 }}
+               >
+                 📋 Ver Tabla de Inventario
+               </button>
+           </div>
+         </div>
+
+         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+           {/* Trazabilidad Reciente[cite: 13] */}
+           <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '24px', border: '1px solid #e8ece8' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+               <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f291e', fontWeight: '700' }}>Últimos Movimientos</h3>
+               <span style={{ fontSize: '0.75rem', color: '#123b2b', fontWeight: 'bold' }}>Sincronizado</span>
+             </div>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+               {entradas.slice(0, 2).map((e) => (
+                 <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                   <div>
+                     <div style={{ fontWeight: 'bold', color: '#0f291e' }}>{e.descripcion}</div>
+                     <div style={{ color: '#6b7280', fontSize: '0.75rem' }}>Ingreso • {e.proveedor}</div>
+                   </div>
+                   <span style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold', fontSize: '0.75rem' }}>+{e.cantidad}</span>
+                 </div>
+               ))}
+               {salidas.slice(0, 2).map((s) => (
+                 <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                   <div>
+                     <div style={{ fontWeight: 'bold', color: '#0f291e' }}>{s.descripcion}</div>
+                     <div style={{ color: '#6b7280', fontSize: '0.75rem' }}>Despacho • {s.centroCosto}</div>
+                   </div>
+                   <span style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold', fontSize: '0.75rem' }}>-{s.cantidad}</span>
+                 </div>
+               ))}
+               {entradas.length === 0 && salidas.length === 0 && <p style={{ color: '#9ca3af', fontSize: '0.85rem', textAlign: 'center', margin: '10px 0' }}>Sin registros recientes.</p>}
+             </div>
+           </div>
+
+           {/* Medidor Circular[cite: 13] */}
+           <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '24px', border: '1px solid #e8ece8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+             <h3 style={{ margin: '0 0 12px 0', fontSize: '1rem', color: '#0f291e', fontWeight: '700', alignSelf: 'flex-start' }}>Disponibilidad de Stock</h3>
+             <div style={{ position: 'relative', width: '150px', height: '90px', display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>
+               <svg width="140" height="80" viewBox="0 0 100 50">
+                 <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#e8ece8" strokeWidth="12" strokeLinecap="round" />
+                 <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#123b2b" strokeWidth="12" strokeLinecap="round" strokeDasharray="126" strokeDashoffset={126 - (126 * porcDisponible) / 100} style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
+               </svg>
+               <div style={{ position: 'absolute', bottom: '0', textAlign: 'center' }}><div style={{ fontSize: '1.6rem', fontWeight: '800', color: '#123b2b' }}>{porcDisponible}%</div></div>
+             </div>
+             <span style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '10px', fontWeight: '500' }}>Materiales listos para despacho</span>
+           </div>
+         </div>
+       </div>
+
+       {/* COLUMNA DERECHA */}
+       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
+         {/* Top Materiales Lista[cite: 13] */}
+         <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '24px', border: '1px solid #e8ece8', flex: 1 }}>
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+             <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f291e', fontWeight: '700' }}>Materiales Clave</h3>
+             <button onClick={() => navigate('/materiales')} style={{ background: 'none', border: 'none', color: '#123b2b', fontWeight: 'bold', fontSize: '0.8rem', cursor: 'pointer' }}>+ Ver Todos</button>
+           </div>
+           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+             {topMateriales.map((item) => (
+               <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                   <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#f0f4f2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#123b2b', fontSize: '0.8rem' }}>📦</div>
+                   <div>
+                     <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#0f291e' }}>{item.codigo}</div>
+                     <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{item.descripcion}</div>
+                   </div>
+                 </div>
+                 <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#123b2b' }}>{item.stockActual} <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>{item.unidadMedida}</span></span>
+               </div>
+             ))}
+             {topMateriales.length === 0 && <p style={{ color: '#9ca3af', fontSize: '0.85rem', textAlign: 'center' }}>Sin materiales registrados.</p>}
+           </div>
+         </div>
+
+         {/* Tarjeta Oscura de Valor Total Inventario[cite: 13] */}
+         <div style={{ backgroundColor: '#123b2b', color: '#fff', padding: '24px', borderRadius: '24px', background: 'linear-gradient(135deg, #123b2b 0%, #081f16 100%)', boxShadow: '0 10px 20px rgba(18, 59, 43, 0.25)', position: 'relative', overflow: 'hidden' }}>
+           <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 'bold' }}>Valor Total en Bodega</span>
+           <div style={{ fontSize: '2rem', fontWeight: '800', margin: '12px 0 16px 0', color: '#ffffff' }}>
+             ${valorTotal.toLocaleString()} <span style={{ fontSize: '0.9rem', fontWeight: 'normal', opacity: 0.8 }}>COP</span>
+           </div>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', backgroundColor: 'rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '12px', width: 'fit-content' }}>
+             <span>💰</span> Valorado según costo acumulado
+           </div>
+         </div>
+       </div>
+     </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-      } catch (err) {
-        console.warn('Backend desconectado o error, usando fallback para Dashboard:', err);
-        // Fallback para visualización local
-        const fallbackItems: ItemInventarioBackend[] = [
-          {
-            id_inventory: 1,
-            material_id: 1,
-            material_name: 'PARRILLA ASADOR A GAS PLUS + BANDEJA LATERAL',
-            internal_code: 'MIG 001',
-            unit: 'UN',
-            category: 'Equipos',
-            activo: true,
-            current_stock: 15,
-            min_stock: 5,
-            estado: 'ok',
-          },
-          {
-            id_inventory: 2,
-            material_id: 2,
-            material_name: 'LAVARROPAS ECO 48X60 CM FIRPLAK',
-            internal_code: 'MIG 002',
-            unit: 'UN',
-            category: 'Grifería',
-            activo: true,
-            current_stock: 0,
-            min_stock: 2,
-            estado: 'agotado',
-          },
-          {
-            id_inventory: 3,
-            material_id: 3,
-            material_name: 'CATALIZADOR EPOXICO X 1/4 TITO PABON',
-            internal_code: 'MIG 003',
-            unit: 'GL',
-            category: 'Pinturas',
-            activo: true,
-            current_stock: 4,
-            min_stock: 10,
-            estado: 'bajo_minimo',
-          },
-        ];
-        setItems(fallbackItems);
-        setResumen({
-          total: fallbackItems.length,
-          con_stock: fallbackItems.filter((i) => i.estado === 'ok').length,
-          agotados: fallbackItems.filter((i) => i.estado === 'agotado').length,
-          bajo_minimo: fallbackItems.filter((i) => i.estado === 'bajo_minimo').length,
-        });
-      }
-    };
-
-    cargarDatos();
-  }, []);
-
-  const resultadosBusqueda = useMemo(() => {
-    if (!debouncedSearch.trim()) return [];
-    const term = debouncedSearch.toLowerCase();
-    return items.filter(
-      (item) =>
-        item.material_name.toLowerCase().includes(term) ||
-        item.internal_code.toLowerCase().includes(term)
-    );
-  }, [debouncedSearch, items]);
-
-  const top10Stock = useMemo(() => {
-    return [...items]
-      .sort((a, b) => b.current_stock - a.current_stock)
-      .slice(0, 10);
-  }, [items]);
-
-  const sedeIdActiva = String(usuario?.warehouse_id ?? '1');
-  const sedeNombre = MOCK_SEDES.find((s) => s.id === sedeIdActiva)?.nombre || 'Almacén Principal';
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Encabezado */}
-      <div>
-        <h1 style={{ fontSize: '1.8rem', color: '#1f2937', margin: 0, fontWeight: 'bold' }}>
-          Dashboard Principal
-        </h1>
-        <p style={{ color: '#6b7280', margin: '4px 0 0 0', fontSize: '0.95rem' }}>
-          Vista de {usuario?.rol || 'Almacenista'} ({sedeNombre})
-        </p>
-      </div>
-
-      <div style={{ position: 'relative' }}>
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Buscar material por nombre o código en tiempo real..."
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            borderRadius: '10px',
-            border: '1px solid #e5e7eb',
-            fontSize: '0.95rem',
-            boxSizing: 'border-box',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-            outline: 'none',
-          }}
-        />
-
-        {debouncedSearch.trim() !== '' && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '110%',
-              left: 0,
-              right: 0,
-              backgroundColor: '#fff',
-              border: '1px solid #e5e7eb',
-              borderRadius: '10px',
-              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-              zIndex: 10,
-              maxHeight: '250px',
-              overflowY: 'auto',
-            }}
-          >
-            {resultadosBusqueda.length > 0 ? (
-              resultadosBusqueda.map((item) => (
-                <div
-                  key={item.id_inventory || item.internal_code}
-                  style={{
-                    padding: '12px 16px',
-                    borderBottom: '1px solid #f3f4f6',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <span>
-                    <strong>{item.internal_code}</strong> - {item.material_name}
-                  </span>
-                  <span style={{ fontWeight: 'bold', color: '#344e41' }}>
-                    {item.current_stock} {item.unit}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div style={{ padding: '12px 16px', color: '#9ca3af', textAlign: 'center' }}>
-                No se encontraron materiales en el inventario
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '16px',
-        }}
-      >
-        <Card title="Total Materiales" value={resumen.total} color="#3b82f6" />
-        <Card title="Con Stock" value={resumen.con_stock} color="#10b981" />
-        <Card title="Agotados" value={resumen.agotados} color="#f59e0b" />
-        <Card title="Bajo Mínimo" value={resumen.bajo_minimo} color="#ef4444" />
-      </div>
-
-      <div
-        style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '14px',
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-        }}
-      >
-        <h2 style={{ fontSize: '1.2rem', color: '#1f2937', marginBottom: '16px' }}>
-          🏆 Top 10 Materiales por Stock en Bodega
-        </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {top10Stock.length > 0 ? (
-            top10Stock.map((item) => {
-              const maxStock = top10Stock[0]?.current_stock || 1;
-              const porcentaje =
-                maxStock > 0 ? Math.min((item.current_stock / maxStock) * 100, 100) : 0;
-
-              return (
-                <div key={item.id_inventory || item.internal_code}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontSize: '0.85rem',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    <span style={{ fontWeight: '500' }}>
-                      {item.internal_code} - {item.material_name}
-                    </span>
-                    <span style={{ fontWeight: 'bold' }}>
-                      {item.current_stock} {item.unit}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      height: '8px',
-                      backgroundColor: '#f3f4f6',
-                      borderRadius: '4px',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${porcentaje}%`,
-                        backgroundColor: '#344e41',
-                        borderRadius: '4px',
-                        transition: 'width 0.4s',
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div style={{ color: '#9ca3af', textAlign: 'center', fontSize: '0.9rem' }}>
-              No hay materiales en bodega aún.
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+      `}</style>
+   </div>
+ );
 };
-
-interface CardProps {
-  title: string;
-  value: string | number;
-  color: string;
-}
-
-const Card: React.FC<CardProps> = ({ title, value, color }) => (
-  <div
-    style={{
-      backgroundColor: '#fff',
-      padding: '20px',
-      borderRadius: '14px',
-      border: '1px solid #e5e7eb',
-      borderLeft: `5px solid ${color}`,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-    }}
-  >
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: '500' }}>{title}</span>
-    </div>
-    <div style={{ fontSize: '1.6rem', fontWeight: 'bold', color: '#1f2937', marginTop: '8px' }}>
-      {value}
-    </div>
-  </div>
-);

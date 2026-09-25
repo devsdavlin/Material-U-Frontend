@@ -1,7 +1,6 @@
 import React, { createContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Usuario } from '../types/Usuario';
-import { MOCK_USUARIOS } from '../mocks/usuarios';
 import { loginBackend } from '../services/authService';
 
 const STORAGE_KEYS = {
@@ -67,20 +66,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const data = await loginBackend(email, password);
       if (data && data.token && data.user) {
-        guardarSesion(data.user, data.token);
-        return true;
-      }
-    } catch {
-      // Si el backend no está disponible o rechaza, probamos fallback de mocks para pruebas
-      const userFound = MOCK_USUARIOS.find(
-        (u) => u.email === email && u.password === password
-      );
+        const user = {
+          ...data.user,
+          name: data.user.name ?? data.user.nombre ?? 'Usuario',
+          nombre: data.user.nombre ?? data.user.name ?? 'Usuario',
+          email: data.user.email ?? email,
+          rol: data.user.rol ?? 'Administrador',
+          warehouse_id: data.user.warehouse_id ?? data.user.warehouseId ?? null,
+          sedeId: data.user.sedeId ?? data.user.sede_id ?? data.user.warehouse_id?.toString() ?? '1',
+        } as Usuario;
 
-      if (userFound) {
-        const generatedToken = `mock-token-${userFound.id_user}`;
-        guardarSesion(userFound, generatedToken);
+        guardarSesion(user, data.token);
         return true;
       }
+    } catch (error) {
+      console.error('Login real falló:', error);
     }
 
     return false;
@@ -90,12 +90,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     guardarSesion(null, null);
   };
 
-  const cambiarRolSimulado = (idUsuario: string) => {
-    const userFound = MOCK_USUARIOS.find((u) => u.id_user === idUsuario);
-    if (userFound) {
-      const nextToken = token ?? `mock-token-${userFound.id_user}`;
-      guardarSesion(userFound, nextToken);
-    }
+  const cambiarRolSimulado = (_idUsuario: string) => {
+    // Sin mocks. El rol lo define el backend real.
+    return;
   };
 
   const fetchConToken = async (

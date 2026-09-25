@@ -23,7 +23,7 @@ const mockExits = [
 
 const handlers = [
   // Login endpoint – return a dummy token and first mock user
-  rest.post('/api/users/login', (req, res, ctx) => {
+  rest.post('/api/users/login', (_req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({ token: 'offline-token', user: { id_user: '1', nombre: 'Admin', email: 'admin@inventario.com', rol: 'admin', sede: 'Main' } })
@@ -31,22 +31,22 @@ const handlers = [
   }),
 
   // Materials list
-  rest.get('/api/materials/buscar', (req, res, ctx) => {
+  rest.get('/api/materials/buscar', (_req, res, ctx) => {
     return res(ctx.status(200), ctx.json(mockMaterials));
   }),
 
   // Inventory list
-  rest.get('/api/inventory', (req, res, ctx) => {
+  rest.get('/api/inventory', (_req, res, ctx) => {
     return res(ctx.status(200), ctx.json(mockInventory));
   }),
 
   // Entries list
-  rest.get('/api/entries', (req, res, ctx) => {
+  rest.get('/api/entries', (_req, res, ctx) => {
     return res(ctx.status(200), ctx.json(mockEntries));
   }),
 
   // Exits list
-  rest.get('/api/exits', (req, res, ctx) => {
+  rest.get('/api/exits', (_req, res, ctx) => {
     return res(ctx.status(200), ctx.json(mockExits));
   }),
 ];

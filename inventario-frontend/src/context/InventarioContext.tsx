@@ -1,164 +1,128 @@
-import { createContext, useContext, useState, type FC, type ReactNode } from 'react';
-import type { ItemInventario } from '../types/Inventario';
+import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { materialService, type Material } from '../services/materialService';
 import { MOCK_INVENTARIO } from '../mocks/inventario';
+import type { ItemInventario } from '../types/Inventario';
 
-export interface Material {
+interface EntradaContexto {
   id: string;
-  codigo: string;
+  materialId: string;
   descripcion: string;
-  unidadMedida: string;
-  categoria: string;
-  stockMinimo: number;
+  codigoMig?: string;
+  proveedor?: string;
+  cantidad: number;
+  valorUnitario?: number;
+  valorTotal?: number;
 }
 
-export interface EntradaRegistro {
+interface SalidaContexto {
   id: string;
-  codigoMig: string;
-  fecha: string;
   materialId: string;
-  internal_code?: string;
-  entry_number?: string;
   descripcion: string;
-  proveedor: string;
+  codigoVale?: string;
+  centroCosto?: string;
   cantidad: number;
-  valorUnitario: number;
-  valorTotal: number;
-}
-
-export interface SalidaRegistro {
-  id: string;
-  codigoVale: string;
-  fecha: string;
-  materialId: string;
-  internal_code?: string;
-  exit_number?: string;
-  descripcion: string;
-  centroCosto: string;
-  cost_center?: string;
-  cantidad: number;
-  unidadMedida: string;
-  unit_value?: number;
-  registradoPor: string;
+  unidadMedida?: string;
+  registradoPor?: string;
 }
 
 interface InventarioContextType {
-  inventario: ItemInventario[];
   materiales: Material[];
-  entradas: EntradaRegistro[];
-  salidas: SalidaRegistro[];
-  agregarMaterial: (material: Omit<Material, 'id'>) => void;
+  inventario: ItemInventario[];
+  entradas: EntradaContexto[];
+  salidas: SalidaContexto[];
+  cargando: boolean;
+  cargarDatosBackend: () => Promise<void>;
+  agregarMaterial: (material: Omit<Material, 'id'> & { id?: string }) => void;
   eliminarMaterial: (id: string) => void;
-  agregarEntrada: (entrada: Omit<EntradaRegistro, 'id' | 'codigoMig' | 'fecha'>) => void;
-  agregarSalida: (salida: Omit<SalidaRegistro, 'id' | 'codigoVale' | 'fecha'>) => void;
+  agregarEntrada: (entrada: Omit<EntradaContexto, 'id'> & { id?: string }) => void;
+  agregarSalida: (salida: Omit<SalidaContexto, 'id'> & { id?: string }) => void;
 }
 
 const InventarioContext = createContext<InventarioContextType>({} as InventarioContextType);
 
-export const InventarioProvider: FC<{ children: ReactNode }> = ({ children }) => {
+export const InventarioProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [materiales, setMateriales] = useState<Material[]>([]);
   const [inventario, setInventario] = useState<ItemInventario[]>(MOCK_INVENTARIO);
+  const [entradas, setEntradas] = useState<EntradaContexto[]>([]);
+  const [salidas, setSalidas] = useState<SalidaContexto[]>([]);
+  const [cargando, setCargando] = useState<boolean>(true);
 
-  const [materiales, setMateriales] = useState<Material[]>([
-    { id: 'm1', codigo: 'MIG 001', descripcion: 'PARRILLA ASADOR A GAS PLUS + BANDEJA LATERAL', unidadMedida: 'UN', categoria: 'Equipos', stockMinimo: 5 },
-    { id: 'm2', codigo: 'MIG 002', descripcion: 'LAVARROPAS ECO 48X60 CM FIRPLAK', unidadMedida: 'UN', categoria: 'Grifería', stockMinimo: 2 },
-    { id: 'm3', codigo: 'MIG 003', descripcion: 'CATALIZADOR EPOXICO X 1/4 TITO PABON', unidadMedida: 'GL', categoria: 'Pinturas', stockMinimo: 10 },
-  ]);
+  const cargarDatosBackend = async () => {
+    try {
+      setCargando(true);
+      const data = await materialService.obtenerTodos();
+      setMateriales(data);
+      setInventario((prev) => {
+        if (prev.length === 0) return MOCK_INVENTARIO;
+        return prev;
+      });
+    } catch (error) {
+      console.error('Error conectando con el backend:', error);
+    } finally {
+      setCargando(false);
+    }
+  };
 
-  const [entradas, setEntradas] = useState<EntradaRegistro[]>([]);
-  const [salidas, setSalidas] = useState<SalidaRegistro[]>([]);
+  useEffect(() => {
+    cargarDatosBackend();
+  }, []);
 
-  const agregarMaterial = (nuevoMat: Omit<Material, 'id'>) => {
-    const idGenerado = `m-${Date.now()}`;
-    const materialCompleto: Material = { ...nuevoMat, id: idGenerado };
-
-    setMateriales((prev) => [...prev, materialCompleto]);
-
-    const nuevoItemInv: ItemInventario = {
-      id: `inv-${Date.now()}`,
-      materialId: idGenerado,
-      codigo: nuevoMat.codigo,
-      descripcion: nuevoMat.descripcion,
-      unidadMedida: nuevoMat.unidadMedida,
-      sedeId: '1',
-      sedeNombre: 'Almacén La Vega',
-      stockActual: 0,
-      entradasTotales: 0,
-      salidasTotales: 0,
-      valorTotal: 0,
-      estado: 'AGOTADO',
-    };
-
-    setInventario((prev) => [...prev, nuevoItemInv]);
+  const agregarMaterial = (material: Omit<Material, 'id'> & { id?: string }) => {
+    setMateriales((prev) => [{
+      id: material.id ?? `material-${Date.now()}`,
+      codigo: material.codigo,
+      descripcion: material.descripcion,
+      unidadMedida: material.unidadMedida,
+      categoria: material.categoria,
+      stockMinimo: material.stockMinimo,
+    }, ...prev]);
   };
 
   const eliminarMaterial = (id: string) => {
-    setMateriales((prev) => prev.filter((m) => m.id !== id));
-    setInventario((prev) => prev.filter((inv) => inv.materialId !== id));
+    setMateriales((prev) => prev.filter((material) => material.id !== id));
   };
 
-  const agregarEntrada = (datos: Omit<EntradaRegistro, 'id' | 'codigoMig' | 'fecha'>) => {
-    const nuevaEntrada: EntradaRegistro = {
-      ...datos,
-      id: `e-${Date.now()}`,
-      codigoMig: `ING-00${entradas.length + 1}`,
-      fecha: new Date().toISOString().split('T')[0],
-    };
-
-    setEntradas((prev) => [nuevaEntrada, ...prev]);
-
-    setInventario((prev) =>
-      prev.map((item) => {
-        if (item.materialId === datos.materialId) {
-          const nuevoStock = item.stockActual + datos.cantidad;
-          const nuevasEntradas = item.entradasTotales + datos.cantidad;
-          const nuevoValorTotal = item.valorTotal + datos.valorTotal;
-
-          return {
-            ...item,
-            stockActual: nuevoStock,
-            entradasTotales: nuevasEntradas,
-            valorTotal: nuevoValorTotal,
-            estado: nuevoStock > 0 ? 'CON_STOCK' : 'AGOTADO',
-          };
-        }
-        return item;
-      })
-    );
+  const agregarEntrada = (entrada: Omit<EntradaContexto, 'id'> & { id?: string }) => {
+    setEntradas((prev) => [{
+      id: entrada.id ?? `entrada-${Date.now()}`,
+      materialId: entrada.materialId,
+      descripcion: entrada.descripcion,
+      codigoMig: entrada.codigoMig,
+      proveedor: entrada.proveedor,
+      cantidad: entrada.cantidad,
+      valorUnitario: entrada.valorUnitario,
+      valorTotal: entrada.valorTotal,
+    }, ...prev]);
   };
 
-  const agregarSalida = (datos: Omit<SalidaRegistro, 'id' | 'codigoVale' | 'fecha'>) => {
-    const nuevaSalida: SalidaRegistro = {
-      ...datos,
-      id: `s-${Date.now()}`,
-      codigoVale: `VALE-00${salidas.length + 1}`,
-      fecha: new Date().toISOString().split('T')[0],
-    };
-
-    setSalidas((prev) => [nuevaSalida, ...prev]);
-
-    setInventario((prev) =>
-      prev.map((item) => {
-        if (item.materialId === datos.materialId) {
-          const nuevoStock = item.stockActual - datos.cantidad;
-          const nuevasSalidas = item.salidasTotales + datos.cantidad;
-
-          let estadoActual: 'CON_STOCK' | 'AGOTADO' | 'NEGATIVO' = 'CON_STOCK';
-          if (nuevoStock === 0) estadoActual = 'AGOTADO';
-          if (nuevoStock < 0) estadoActual = 'NEGATIVO';
-
-          return {
-            ...item,
-            stockActual: nuevoStock,
-            salidasTotales: nuevasSalidas,
-            estado: estadoActual,
-          };
-        }
-        return item;
-      })
-    );
+  const agregarSalida = (salida: Omit<SalidaContexto, 'id'> & { id?: string }) => {
+    setSalidas((prev) => [{
+      id: salida.id ?? `salida-${Date.now()}`,
+      materialId: salida.materialId,
+      descripcion: salida.descripcion,
+      codigoVale: salida.codigoVale,
+      centroCosto: salida.centroCosto,
+      cantidad: salida.cantidad,
+      unidadMedida: salida.unidadMedida,
+      registradoPor: salida.registradoPor,
+    }, ...prev]);
   };
 
   return (
-    <InventarioContext.Provider value={{ inventario, materiales, entradas, salidas, agregarMaterial, eliminarMaterial, agregarEntrada, agregarSalida }}>
+    <InventarioContext.Provider
+      value={{
+        materiales,
+        inventario,
+        entradas,
+        salidas,
+        cargando,
+        cargarDatosBackend,
+        agregarMaterial,
+        eliminarMaterial,
+        agregarEntrada,
+        agregarSalida,
+      }}
+    >
       {children}
     </InventarioContext.Provider>
   );

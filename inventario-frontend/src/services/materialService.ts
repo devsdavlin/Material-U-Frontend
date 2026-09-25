@@ -1,50 +1,63 @@
-import { apiFetch } from './api';
+import { api } from './api';
+
+export interface Material {
+  id: string;
+  codigo: string;
+  descripcion: string;
+  unidadMedida: string;
+  categoria: string;
+  stockMinimo: number;
+}
 
 export interface MaterialBackend {
   id_material: number;
   internal_code: string;
   material_name: string;
-  category: string;
   unit: string;
-  activo?: boolean;
-  min_stock?: number;
+  category: string;
+  min_stock: number;
 }
 
-export interface NuevoMaterialDTO {
+export const obtenerMateriales = async (): Promise<MaterialBackend[]> => {
+  const respuesta = await api.get<MaterialBackend[]>('/materiales');
+  return respuesta.data;
+};
+
+export const crearMaterial = async (payload: {
   internal_code: string;
   material_name: string;
   category: string;
   unit: string;
-}
-
-export const obtenerMateriales = async (busqueda = ''): Promise<MaterialBackend[]> => {
-  const query = busqueda ? `?q=${encodeURIComponent(busqueda)}&limite=100` : '?limite=100';
-  const res = await apiFetch(`/materials/buscar${query}`);
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || 'Error al obtener materiales');
-  }
-  return data.materials || [];
+  min_stock?: number;
+}): Promise<MaterialBackend> => {
+  const respuesta = await api.post<MaterialBackend>('/materiales', payload);
+  return respuesta.data;
 };
 
-export const crearMaterial = async (datos: NuevoMaterialDTO): Promise<MaterialBackend> => {
-  const res = await apiFetch('/materials', {
-    method: 'POST',
-    body: JSON.stringify(datos),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || 'Error al crear material');
-  }
-  return data.material;
+export const desactivarMaterial = async (id: number | string): Promise<void> => {
+  await api.delete(`/materiales/${id}`);
 };
 
-export const desactivarMaterial = async (id: number): Promise<void> => {
-  const res = await apiFetch(`/materials/${id}/desactivar`, {
-    method: 'PATCH',
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || 'Error al desactivar el material');
-  }
+export const materialService = {
+  obtenerTodos: async (): Promise<Material[]> => {
+    const respuesta = await api.get<MaterialBackend[]>('/materiales');
+    return respuesta.data.map((item) => ({
+      id: String(item.id_material),
+      codigo: item.internal_code,
+      descripcion: item.material_name,
+      unidadMedida: item.unit,
+      categoria: item.category,
+      stockMinimo: item.min_stock,
+    }));
+  },
+
+  subirExcel: async (archivo: File): Promise<{ mensaje: string; insertados: number }> => {
+    const formData = new FormData();
+    formData.append('file', archivo);
+
+    const respuesta = await api.post('/materiales/migrar-excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return respuesta.data;
+  },
 };

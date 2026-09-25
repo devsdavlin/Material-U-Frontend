@@ -1,28 +1,37 @@
-// API configuration with environment variable
-// Vite will replace VITE_API_BASE_URL at build time. If not set, defaults to empty string (relative URLs).
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+import axios from 'axios';
 
-export const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('inventario_token');
-};
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
-export const apiFetch = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
-  const token = getAuthToken();
-  const headers = new Headers(options.headers || {});
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-  // Only add Authorization header if we have a token (real or dummy) and it's not already set
-  if (token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${token}`);
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
+  return config;
+});
 
+export const apiFetch = async (
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<Response> => {
+  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+  const headers = new Headers(options.headers ?? {});
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const url = endpoint.startsWith('http')
-    ? endpoint
-    : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  const token = localStorage.getItem('inventario_token') || localStorage.getItem('token');
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
 
   return fetch(url, {
     ...options,

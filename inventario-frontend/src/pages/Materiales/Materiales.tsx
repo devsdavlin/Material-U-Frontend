@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useInventario } from '../../context/InventarioContext';
-import type { Material } from '../../context/InventarioContext';
-import { obtenerMateriales, crearMaterial, desactivarMaterial, type MaterialBackend } from '../../services/materialService';
+import { obtenerMateriales, crearMaterial, desactivarMaterial, type Material, type MaterialBackend } from '../../services/materialService';
 
 export const Materiales: React.FC = () => {
   const { agregarMaterial, eliminarMaterial, entradas, salidas } = useInventario();
