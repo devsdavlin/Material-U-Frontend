@@ -1,4 +1,4 @@
-import { apiFetch } from './api';
+import { api } from './api';
 
 export type EstadoInventario = 'todos' | 'con_stock' | 'bajo_minimo' | 'agotado';
 
@@ -41,10 +41,6 @@ export const obtenerMiInventario = async (
   }
   query.set('limite', '100');
 
-  const res = await apiFetch(`/inventory?${query.toString()}`);
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || 'Error al obtener inventario');
-  }
-  return data;
+  const respuesta = await api.get<RespuestaInventario>(`/inventario?${query.toString()}`);
+  return respuesta.data;
 };

@@ -22,11 +22,11 @@ const mockExits = [
 ];
 
 const handlers = [
-  // Login endpoint – return a dummy token and first mock user
+  // Login endpoint – return a dummy token and normalized user
   rest.post('/api/users/login', (_req, res, ctx) => {
     return res(
       ctx.status(200),
-      ctx.json({ token: 'offline-token', user: { id_user: '1', nombre: 'Admin', email: 'admin@inventario.com', rol: 'admin', sede: 'Main' } })
+      ctx.json({ token: 'offline-token', user: { id_user: '1', nombre: 'Admin', email: 'admin@inventario.com', rol: 'Administrador', sedeId: '1' } })
     );
   }),
 
@@ -37,7 +37,7 @@ const handlers = [
 
   // Inventory list
   rest.get('/api/inventory', (_req, res, ctx) => {
-    return res(ctx.status(200), ctx.json(mockInventory));
+    return res(ctx.status(200), ctx.json({ ok: true, items: mockInventory, resumen: { total: mockInventory.length, con_stock: 2, agotados: 0, bajo_minimo: 1 } }));
   }),
 
   // Entries list
@@ -49,9 +49,18 @@ const handlers = [
   rest.get('/api/exits', (_req, res, ctx) => {
     return res(ctx.status(200), ctx.json(mockExits));
   }),
+
+  // Warehouses list
+  rest.get('/api/warehouses', (_req, res, ctx) => {
+    return res(ctx.status(200), ctx.json([{ id: '1', nombre: 'Sede principal' }]));
+  }),
 ];
 
 export const startMockServer = () => {
+  if (import.meta.env.PROD || import.meta.env.VITE_ENABLE_MOCKS !== 'true') {
+    return;
+  }
+
   const worker = setupWorker(...handlers);
   worker.start({ onUnhandledRequest: 'bypass' });
   console.log('🔸 Mock Service Worker (browser) started');

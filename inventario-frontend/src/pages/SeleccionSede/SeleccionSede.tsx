@@ -1,16 +1,13 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import { guardarSedeSeleccionada, obtenerSedesActivas } from '../../mocks/sedes';
 
 export const SeleccionSede: React.FC = () => {
   const { usuario } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const sedes = [
-    { id: '1', nombre: 'Almacén La Vega', descripcion: 'Sede Principal' },
-    { id: '2', nombre: 'Almacén Progres', descripcion: 'Sede Norte' },
-    { id: '3', nombre: 'Almacén Central', descripcion: 'Sede Sur' },
-  ];
+  const sedes = useMemo(() => obtenerSedesActivas(), []);
 
   return (
     <div style={{ padding: '40px 20px', maxWidth: '1000px', margin: '0 auto', animation: 'fadeIn 0.5s ease' }}>
@@ -27,7 +24,10 @@ export const SeleccionSede: React.FC = () => {
         {sedes.map((sede) => (
           <div
             key={sede.id}
-            onClick={() => navigate(`/inventario?sede=${sede.id}&nombre=${encodeURIComponent(sede.nombre)}`)}
+            onClick={() => {
+              guardarSedeSeleccionada(sede);
+              navigate(`/dashboard?sedeId=${sede.id}&nombreSede=${encodeURIComponent(sede.nombre)}`);
+            }}
             style={{
               backgroundColor: '#ffffff',
               borderRadius: '24px',
@@ -52,11 +52,14 @@ export const SeleccionSede: React.FC = () => {
               e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.05)';
             }}
           >
-            <div style={{ fontSize: '3.5rem', backgroundColor: '#fdf2f8', width: '90px', height: '90px', display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '50%', marginBottom: '20px', color: '#ec4899' }}>
-              🏢
+            <div style={{ backgroundColor: '#fdf2f8', width: '90px', height: '90px', display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '50%', marginBottom: '20px' }}>
+              <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="#123b2b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 20V7l8-4 8 4v13" />
+                <path d="M9 20v-6h6v6M8 10h.01M12 10h.01M16 10h.01" />
+              </svg>
             </div>
             <h2 style={{ margin: '0 0 8px 0', color: '#1f2937', fontSize: '1.5rem' }}>{sede.nombre}</h2>
-            <p style={{ margin: '0 0 24px 0', color: '#9ca3af', fontSize: '0.95rem' }}>{sede.descripcion}</p>
+            <p style={{ margin: '0 0 24px 0', color: '#9ca3af', fontSize: '0.95rem' }}>{sede.ubicacion}</p>
             
             <button style={{
               backgroundColor: '#123b2b', color: '#fff', border: 'none',

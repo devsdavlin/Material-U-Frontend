@@ -1,20 +1,88 @@
 import React, { useContext, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { useInventario } from '../../context/InventarioContext';
-import { MOCK_SEDES } from '../../mocks/sedes';
+import { guardarSedeSeleccionada, normalizarSedeId, obtenerSedeSeleccionada, obtenerSedesActivas } from '../../mocks/sedes';
 import type { ItemInventario } from '../../types/Inventario';
+
+const green = '#123b2b';
+const greenSoft = '#10b981';
+const warning = '#f59e0b';
+const danger = '#ef4444';
+
+const ArrowBadge = ({ color = '#123b2b' }: { color?: string }) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M7 17L17 7" />
+    <path d="M8 7h9v9" />
+  </svg>
+);
+
+const StatusDot = ({ color = greenSoft }: { color?: string }) => (
+  <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+    <circle cx="12" cy="12" r="7" fill={color} />
+  </svg>
+);
+
+const WarningIcon = ({ color = warning }: { color?: string }) => (
+  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 3l9 16H3L12 3z" />
+    <path d="M12 9v4" />
+    <circle cx="12" cy="16.5" r="1" fill={color} stroke="none" />
+  </svg>
+);
+
+const AlertIcon = ({ color = danger }: { color?: string }) => (
+  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 9v4" />
+    <circle cx="12" cy="16.5" r="1" fill={color} stroke="none" />
+    <path d="M12 3L21 19H3L12 3z" />
+  </svg>
+);
+
+const BoxIcon = ({ color = green }: { color?: string }) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 8.5L12 3l9 5.5-9 5.5L3 8.5z" />
+    <path d="M3 8.5V15l9 5.5 9-5.5V8.5" />
+    <path d="M12 14v7" />
+  </svg>
+);
+
+const CoinIcon = ({ color = '#fbbf24' }: { color?: string }) => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="8" />
+    <path d="M12 7v10M9 9.5c0-1.1 1.3-2 3-2s3 .9 3 2-1.3 2-3 2-3 .9-3 2 1.3 2 3 2 3-.9 3-2" />
+  </svg>
+);
 
 export const Dashboard: React.FC = () => {
  const { usuario } = useContext(AuthContext);
  const { inventario = [], entradas = [], salidas = [] } = useInventario();
  const navigate = useNavigate();
+ const [searchParams] = useSearchParams();
 
- // Identificamos la sede del almacenista logueado[cite: 13]
- const sedeIdActiva = usuario?.sedeId ?? usuario?.warehouse_id?.toString() ?? '1';
- const sedeNombre = MOCK_SEDES.find((s) => s.id === sedeIdActiva)?.nombre || 'Almacén La Vega';
+ // 1. Priorizamos la sede que viene en la URL (si el Admin hizo clic en una tarjeta)
+ // 2. Si no hay URL, usamos la sede del almacenista logueado
+ const sedeIdURL = searchParams.get('sedeId');
+ const nombreSedeURL = searchParams.get('nombreSede');
+ const sedePersistida = obtenerSedeSeleccionada();
 
- // Filtramos todo solo para su sede[cite: 13]
+ const sedeIdActiva = normalizarSedeId(
+   sedeIdURL ?? sedePersistida?.id ?? usuario?.sedeId ?? usuario?.warehouse_id?.toString() ?? 's1'
+ );
+ const sedeNombre =
+   nombreSedeURL ??
+   sedePersistida?.nombre ??
+   obtenerSedesActivas().find((s) => s.id === sedeIdActiva)?.nombre ??
+   'La Vega';
+
+ React.useEffect(() => {
+   const sedeActual = obtenerSedesActivas().find((sede) => sede.id === sedeIdActiva);
+   if (sedeActual) {
+     guardarSedeSeleccionada(sedeActual);
+   }
+ }, [sedeIdActiva]);
+
+ // Filtramos todo solo para su sede
  const inventarioSede = useMemo<ItemInventario[]>(() => {
    return inventario.filter((item: ItemInventario) => item.sedeId === sedeIdActiva);
  }, [inventario, sedeIdActiva]);
@@ -72,7 +140,7 @@ export const Dashboard: React.FC = () => {
        <div style={{ backgroundColor: '#123b2b', color: '#fff', padding: '24px', borderRadius: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '130px', boxShadow: '0 10px 20px rgba(18, 59, 43, 0.2)' }}>
          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
            <span style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: '500' }}>Total Materiales</span>
-           <span style={{ backgroundColor: 'rgba(255,255,255,0.2)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>↗</span>
+           <span style={{ backgroundColor: 'rgba(255,255,255,0.2)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowBadge color="#fff" /></span>
          </div>
          <div style={{ fontSize: '2.8rem', fontWeight: '800', lineHeight: 1 }}>{totalMateriales}</div>
          <div style={{ display: 'inline-block', backgroundColor: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', width: 'fit-content' }}>Activos en catálogo</div>
@@ -81,28 +149,28 @@ export const Dashboard: React.FC = () => {
        <div style={{ backgroundColor: '#fff', color: '#0f291e', padding: '24px', borderRadius: '24px', border: '1px solid #e8ece8', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '130px' }}>
          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
            <span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: '500' }}>Con Stock</span>
-           <span style={{ border: '1px solid #e5e7eb', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>↗</span>
+           <span style={{ border: '1px solid #e5e7eb', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowBadge color={green} /></span>
          </div>
          <div style={{ fontSize: '2.8rem', fontWeight: '800', lineHeight: 1 }}>{conStock}</div>
-         <div style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 'bold' }}>🟢 Disponibles en bodega</div>
+         <div style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}><StatusDot color={greenSoft} /> Disponibles en bodega</div>
        </div>
 
        <div style={{ backgroundColor: '#fff', color: '#0f291e', padding: '24px', borderRadius: '24px', border: '1px solid #e8ece8', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '130px' }}>
          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
            <span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: '500' }}>Agotados</span>
-           <span style={{ border: '1px solid #e5e7eb', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>↗</span>
+           <span style={{ border: '1px solid #e5e7eb', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowBadge color={green} /></span>
          </div>
          <div style={{ fontSize: '2.8rem', fontWeight: '800', lineHeight: 1 }}>{agotados}</div>
-         <div style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 'bold' }}>⚠️ Requiere compra</div>
+         <div style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}><WarningIcon color={warning} /> Requiere compra</div>
        </div>
 
        <div style={{ backgroundColor: '#fff', color: '#0f291e', padding: '24px', borderRadius: '24px', border: '1px solid #e8ece8', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '130px' }}>
          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
            <span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: '500' }}>Saldo Negativo</span>
-           <span style={{ border: '1px solid #e5e7eb', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>↗</span>
+           <span style={{ border: '1px solid #e5e7eb', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowBadge color={green} /></span>
          </div>
          <div style={{ fontSize: '2.8rem', fontWeight: '800', lineHeight: 1 }}>{negativos}</div>
-         <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 'bold' }}>🚨 Inconsistencias de saldo</div>
+         <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}><AlertIcon color={danger} /> Inconsistencias de saldo</div>
        </div>
      </div>
 
@@ -138,14 +206,14 @@ export const Dashboard: React.FC = () => {
                  </p>
                </div>
                <button
-                 onClick={() => navigate('/inventario')}
+                 onClick={() => navigate(`/inventario?sedeId=${sedeIdActiva}&nombreSede=${encodeURIComponent(sedeNombre)}`)}
                  style={{
                    backgroundColor: '#123b2b', color: '#fff', border: 'none', padding: '12px',
                    borderRadius: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', fontSize: '0.9rem',
-                   marginTop: '16px'
+                   marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                  }}
                >
-                 📋 Ver Tabla de Inventario
+                 <BoxIcon color="#fff" /> Ver Tabla de Inventario
                </button>
            </div>
          </div>
@@ -207,7 +275,7 @@ export const Dashboard: React.FC = () => {
              {topMateriales.map((item) => (
                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                   <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#f0f4f2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#123b2b', fontSize: '0.8rem' }}>📦</div>
+                   <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#f0f4f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><BoxIcon color={green} /></div>
                    <div>
                      <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#0f291e' }}>{item.codigo}</div>
                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{item.descripcion}</div>
@@ -227,7 +295,7 @@ export const Dashboard: React.FC = () => {
              ${valorTotal.toLocaleString()} <span style={{ fontSize: '0.9rem', fontWeight: 'normal', opacity: 0.8 }}>COP</span>
            </div>
            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', backgroundColor: 'rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '12px', width: 'fit-content' }}>
-             <span>💰</span> Valorado según costo acumulado
+             <CoinIcon color="#fbbf24" /> Valorado según costo acumulado
            </div>
          </div>
        </div>

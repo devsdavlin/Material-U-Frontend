@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { useInventario } from '../../context/InventarioContext';
@@ -10,6 +11,7 @@ import {
   obtenerMiInventario,
   type ItemInventarioBackend,
 } from '../../services/inventarioService';
+import { getLocalSaveWarning } from '../../utils/offlineMode';
 
 export const Salidas: React.FC = () => {
   const { usuario } = useContext(AuthContext);
@@ -84,8 +86,9 @@ export const Salidas: React.FC = () => {
     }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    cargarDatos();
+    void cargarDatos();
   }, []);
 
   const materialSeleccionado = materialesDisponibles.find(
@@ -170,28 +173,10 @@ export const Salidas: React.FC = () => {
       setCantidad('');
       setUnitValue('');
       setErrorStock(null);
-      alert('¡Salida / Despacho registrado y stock descontado con éxito! 🎉');
-    } catch (error: any) {
-      const msg = error.message || 'Error al registrar salida en backend';
-      alert(`Aviso: ${msg}. Se registrará temporalmente en la vista.`);
-
-      const salidaFallback: SalidaBackend = {
-        id_exit: Date.now(),
-        exit_number: exitNumber.trim(),
-        warehouse_id: 1,
-        material_id: materialSeleccionado.material_id,
-        cost_center: centroCosto.trim(),
-        quantity: Number(cantidad),
-        unit_value: valorUnitarioFinal,
-        total_value: Number(cantidad) * valorUnitarioFinal,
-        exit_date: new Date().toISOString(),
-        materials: {
-          material_name: materialSeleccionado.material_name,
-          internal_code: materialSeleccionado.internal_code,
-          unit: materialSeleccionado.unit,
-        },
-      };
-      setSalidasList((prev) => [salidaFallback, ...prev]);
+      alert('Salida registrada en el servidor.');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error al registrar salida en backend';
+      alert(`${msg}. ${getLocalSaveWarning()}`);
 
       setCodigoSeleccionado('');
       setExitNumber('');

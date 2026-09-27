@@ -1,4 +1,4 @@
-import { apiFetch } from './api';
+import { api } from './api';
 
 export interface EntradaBackend {
   id_entry: number;
@@ -28,22 +28,11 @@ export interface NuevaEntradaDTO {
 }
 
 export const obtenerEntradas = async (limite = 50): Promise<EntradaBackend[]> => {
-  const res = await apiFetch(`/entries?limite=${limite}`);
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || 'Error al obtener entradas');
-  }
-  return data.entries || [];
+  const respuesta = await api.get<EntradaBackend[]>(`/entries?limite=${limite}`);
+  return respuesta.data || [];
 };
 
-export const registrarEntrada = async (datos: NuevaEntradaDTO): Promise<any> => {
-  const res = await apiFetch('/entries', {
-    method: 'POST',
-    body: JSON.stringify(datos),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || 'Error al registrar entrada');
-  }
-  return data;
+export const registrarEntrada = async (datos: NuevaEntradaDTO): Promise<unknown> => {
+  const respuesta = await api.post('/entries', datos);
+  return respuesta.data;
 };

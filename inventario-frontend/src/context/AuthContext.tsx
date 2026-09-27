@@ -1,12 +1,41 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Usuario } from '../types/Usuario';
 import { loginBackend } from '../services/authService';
+import { guardarSedeSeleccionada, limpiarSedeSeleccionada, normalizarSedeId, obtenerSedesActivas } from '../mocks/sedes';
+import { STORAGE_KEYS } from '../utils/storage';
 
-const STORAGE_KEYS = {
-  user: 'inventario_user',
-  token: 'inventario_token',
-} as const;
+const normalizarRol = (rol: unknown): Usuario['rol'] => {
+  const valor = String(rol ?? '').trim().toLowerCase();
+
+  if (['administrador', 'admin', 'administrator'].includes(valor)) {
+    return 'Administrador';
+  }
+
+  return 'Almacenista';
+};
+
+const mapUsuarioDesdeBackend = (
+  rawUser: Record<string, unknown> | null | undefined,
+  fallbackEmail: string
+): Usuario => {
+  const rol = normalizarRol(rawUser?.rol ?? rawUser?.role);
+  const rawSedeValue = rawUser?.sedeId ?? rawUser?.sede_id ?? rawUser?.warehouse_id ?? 's1';
+  const sedeValor = typeof rawSedeValue === 'string' || typeof rawSedeValue === 'number'
+    ? rawSedeValue
+    : 's1';
+
+  return {
+    id_user: String(rawUser?.id_user ?? rawUser?.id ?? rawUser?.userId ?? ''),
+    name: (rawUser?.name ?? rawUser?.nombre ?? rawUser?.username) as string | undefined,
+    nombre: (rawUser?.nombre ?? rawUser?.name ?? rawUser?.username) as string | undefined,
+    email: (rawUser?.email as string | undefined) ?? fallbackEmail,
+    rol,
+    warehouse_id: (rawUser?.warehouse_id as number | null | undefined) ?? (rawUser?.warehouseId as number | null | undefined) ?? null,
+    sedeId: normalizarSedeId(sedeValor),
+  };
+};
 
 const getStoredUser = (): Usuario | null => {
   if (typeof window === 'undefined') return null;
@@ -51,10 +80,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (token) {
       localStorage.setItem(STORAGE_KEYS.token, token);
+      // también guardar bajo la clave corta por compatibilidad
+      localStorage.setItem('token', token);
       return;
     }
 
     localStorage.removeItem(STORAGE_KEYS.token);
+    localStorage.removeItem('token');
   }, [token]);
 
   const guardarSesion = (user: Usuario | null, authToken: string | null) => {
@@ -65,18 +97,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const data = await loginBackend(email, password);
-      if (data && data.token && data.user) {
-        const user = {
-          ...data.user,
-          name: data.user.name ?? data.user.nombre ?? 'Usuario',
-          nombre: data.user.nombre ?? data.user.name ?? 'Usuario',
-          email: data.user.email ?? email,
-          rol: data.user.rol ?? 'Administrador',
-          warehouse_id: data.user.warehouse_id ?? data.user.warehouseId ?? null,
-          sedeId: data.user.sedeId ?? data.user.sede_id ?? data.user.warehouse_id?.toString() ?? '1',
-        } as Usuario;
+      const token = typeof data.token === 'string' ? data.token : null;
+      const rawUser = data.user && typeof data.user === 'object' ? data.user : null;
 
-        guardarSesion(user, data.token);
+      if (token && rawUser) {
+        const user = mapUsuarioDesdeBackend(rawUser as Record<string, unknown>, email);
+        const sedeInicial = obtenerSedesActivas().find((sede) => sede.id === user.sedeId)
+          ?? obtenerSedesActivas()[0];
+
+        if (sedeInicial) {
+          guardarSedeSeleccionada(sedeInicial);
+        }
+
+        guardarSesion(user, token);
         return true;
       }
     } catch (error) {
@@ -87,11 +120,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = () => {
+    limpiarSedeSeleccionada();
     guardarSesion(null, null);
   };
 
-  const cambiarRolSimulado = (_idUsuario: string) => {
+  const cambiarRolSimulado = (idUsuario: string) => {
     // Sin mocks. El rol lo define el backend real.
+    void idUsuario;
     return;
   };
 

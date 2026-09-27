@@ -16,7 +16,7 @@ export const CargaExcel: React.FC = () => {
       const resultado = await materialService.subirExcel(archivo);
       alert(`¡Carga exitosa! Se importaron ${resultado.insertados} materiales. 🎉`);
       await cargarDatosBackend(); // Refresca la tabla automáticamente
-    } catch (err) {
+    } catch {
       alert('Error conectando con el backend para subir el Excel. 🚫');
     } finally {
       setCargando(false);

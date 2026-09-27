@@ -3,8 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './styles/global.css';
 
-if (import.meta.env.DEV) {
-  // Dynamically import mock server to avoid affecting production bundle
+if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCKS === 'true') {
   import('./mockServer').then(({ startMockServer }) => {
     startMockServer();
   });

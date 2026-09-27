@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { useInventario } from '../../context/InventarioContext';
@@ -10,6 +11,7 @@ import {
   obtenerMiInventario,
   type ItemInventarioBackend,
 } from '../../services/inventarioService';
+import { getLocalSaveWarning } from '../../utils/offlineMode';
 
 export const Entradas: React.FC = () => {
   const { usuario } = useContext(AuthContext);
@@ -84,8 +86,9 @@ export const Entradas: React.FC = () => {
     }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    cargarDatos();
+    void cargarDatos();
   }, []);
 
   const materialSeleccionado = materialesDisponibles.find(
@@ -143,28 +146,10 @@ export const Entradas: React.FC = () => {
       setProveedor('');
       setCantidad('');
       setValorUnitario('');
-      alert('¡Entrada registrada y stock actualizado en el backend! 🎉');
-    } catch (error: any) {
-      const msg = error.message || 'Error al registrar entrada en backend';
-      alert(`Aviso: ${msg}. Se guardará localmente.`);
-
-      const entradaFallback: EntradaBackend = {
-        id_entry: Date.now(),
-        entry_number: entryNumber.trim(),
-        warehouse_id: 1,
-        material_id: materialSeleccionado.material_id,
-        provider: proveedor.trim() || 'Sin proveedor',
-        quantity: Number(cantidad),
-        unit_value: Number(valorUnitario),
-        total_value: valorTotalCalculado,
-        entry_date: new Date().toISOString(),
-        materials: {
-          material_name: materialSeleccionado.material_name,
-          internal_code: materialSeleccionado.internal_code,
-          unit: materialSeleccionado.unit,
-        },
-      };
-      setEntradasList((prev) => [entradaFallback, ...prev]);
+      alert('Entrada registrada en el servidor.');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error al registrar entrada en backend';
+      alert(`${msg}. ${getLocalSaveWarning()}`);
 
       setCodigoSeleccionado('');
       setEntryNumber('');

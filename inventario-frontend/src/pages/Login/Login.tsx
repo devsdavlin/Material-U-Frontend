@@ -1,21 +1,34 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import { useLoading } from '../../hooks/useLoading';
+import { useToast } from '../../hooks/useToast';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState(''); // 👈 Estado agregado
+  const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
   const { login } = useContext(AuthContext);
+  const { showToast } = useToast();
+  const { setLoading } = useLoading();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login(email, password);
-    if (success) {
-      navigate('/dashboard');
-    } else {
+    setLoading(true);
+
+    try {
+      const ok = await login(email, password);
+      if (ok) {
+        showToast('Inicio de sesión correcto', 'success');
+        navigate('/');
+        return;
+      }
+
       setError(true);
+      showToast('Credenciales incorrectas o servicio no disponible', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 

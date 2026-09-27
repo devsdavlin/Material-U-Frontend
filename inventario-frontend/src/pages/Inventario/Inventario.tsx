@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { guardarSedeSeleccionada, normalizarSedeId, obtenerSedeSeleccionada, obtenerSedesActivas } from '../../mocks/sedes';
 import {
   obtenerMiInventario,
   type ItemInventarioBackend,
@@ -6,10 +8,25 @@ import {
 } from '../../services/inventarioService';
 
 export const Inventario: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const sedePersistida = obtenerSedeSeleccionada();
+  const sedeIdActiva = normalizarSedeId(searchParams.get('sedeId') ?? sedePersistida?.id ?? 's1');
+  const nombreSede =
+    searchParams.get('nombreSede') ??
+    sedePersistida?.nombre ??
+    obtenerSedesActivas().find((sede) => sede.id === sedeIdActiva)?.nombre ??
+    'La Vega';
   const [filtroEstado, setFiltroEstado] = useState<EstadoInventario>('todos');
   const [busqueda, setBusqueda] = useState<string>('');
   const [items, setItems] = useState<ItemInventarioBackend[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
+
+  useEffect(() => {
+    const sedeActual = obtenerSedesActivas().find((sede) => sede.id === sedeIdActiva);
+    if (sedeActual) {
+      guardarSedeSeleccionada(sedeActual);
+    }
+  }, [sedeIdActiva]);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -17,13 +34,19 @@ export const Inventario: React.FC = () => {
       try {
         const res = await obtenerMiInventario(filtroEstado, busqueda);
         if (res && res.items) {
-          setItems(res.items);
+          const datos = sedeIdActiva
+            ? res.items.filter((item) => {
+                const itemSede = String((item as any).sedeId ?? (item as any).warehouse_id ?? '');
+                return itemSede === sedeIdActiva || itemSede === String(sedeIdActiva);
+              })
+            : res.items;
+
+          setItems(datos);
         } else {
           setItems([]);
         }
       } catch (error) {
         console.warn('Backend desconectado o error, usando datos de respaldo:', error);
-        // Fallback demostrativo si el backend aún no tiene datos cargados
         const fallback: ItemInventarioBackend[] = [
           {
             id_inventory: 1,
@@ -82,7 +105,7 @@ export const Inventario: React.FC = () => {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [filtroEstado, busqueda]);
+  }, [filtroEstado, busqueda, sedeIdActiva]);
 
   const getBadgeStyle = (estado: 'ok' | 'agotado' | 'bajo_minimo') => {
     switch (estado) {
@@ -103,7 +126,7 @@ export const Inventario: React.FC = () => {
           Control de Inventario y Existencias
         </h1>
         <p style={{ color: '#6b7280', margin: '4px 0 0 0', fontSize: '0.95rem' }}>
-          Existencias en bodega y saldos sincronizados con el servidor
+          {sedeIdActiva ? `Mostrando inventario de ${nombreSede}` : 'Existencias en bodega y saldos sincronizados con el servidor'}
         </p>
       </div>
 

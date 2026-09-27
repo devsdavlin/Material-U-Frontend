@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { materialService, type Material } from '../services/materialService';
 import { MOCK_INVENTARIO } from '../mocks/inventario';
@@ -63,8 +65,9 @@ export const InventarioProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    cargarDatosBackend();
+    void cargarDatosBackend();
   }, []);
 
   const agregarMaterial = (material: Omit<Material, 'id'> & { id?: string }) => {

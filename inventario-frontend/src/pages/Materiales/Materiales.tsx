@@ -1,6 +1,8 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from 'react';
 import { useInventario } from '../../context/InventarioContext';
 import { obtenerMateriales, crearMaterial, desactivarMaterial, type Material, type MaterialBackend } from '../../services/materialService';
+import { getLocalSaveWarning } from '../../utils/offlineMode';
 
 export const Materiales: React.FC = () => {
   const { agregarMaterial, eliminarMaterial, entradas, salidas } = useInventario();
@@ -33,8 +35,9 @@ export const Materiales: React.FC = () => {
     }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    cargarMateriales();
+    void cargarMateriales();
   }, []);
 
   const [codigo, setCodigo] = useState('');
@@ -81,20 +84,11 @@ export const Materiales: React.FC = () => {
       setDescripcion('');
       setCategoria('');
       setStockMinimo('');
-      alert('¡Material registrado y guardado exitosamente!');
-    } catch (error: any) {
-      const msg = error.message || 'Error al registrar en el backend';
-      alert(`Aviso: ${msg}. Se agregará temporalmente a la vista.`);
-      
-      const materialFallback: MaterialBackend = {
-        id_material: Date.now(),
-        internal_code: codigo.trim(),
-        material_name: descripcion.trim(),
-        category: categoria.trim(),
-        unit: unidadMedida,
-        min_stock: Number(stockMinimo) || 0,
-      };
-      setMaterialesApi((prev) => [materialFallback, ...prev]);
+      alert('Material registrado en el servidor.');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error al registrar en el backend';
+      alert(`${msg}. ${getLocalSaveWarning()}`);
+
       setCodigo('');
       setDescripcion('');
       setCategoria('');
@@ -108,10 +102,11 @@ export const Materiales: React.FC = () => {
         if (typeof id === 'number') {
           await desactivarMaterial(id);
         }
-      } catch (error: any) {
-        console.warn('No se pudo desactivar en backend:', error.message);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'No se pudo desactivar en backend';
+        console.warn(message);
       }
-      setMaterialesApi((prev) => prev.filter((m) => m.id_material !== id && (m as any).id !== id && m.internal_code !== id));
+      setMaterialesApi((prev) => prev.filter((m) => m.id_material !== Number(id) && m.internal_code !== String(id)));
       eliminarMaterial(String(id));
     }
   };

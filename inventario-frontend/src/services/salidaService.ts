@@ -1,4 +1,4 @@
-import { apiFetch } from './api';
+import { api } from './api';
 
 export interface SalidaBackend {
   id_exit: number;
@@ -28,22 +28,11 @@ export interface NuevaSalidaDTO {
 }
 
 export const obtenerSalidas = async (limite = 50): Promise<SalidaBackend[]> => {
-  const res = await apiFetch(`/exits?limite=${limite}`);
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || 'Error al obtener salidas');
-  }
-  return data.exits || [];
+  const respuesta = await api.get<SalidaBackend[]>(`/exits?limite=${limite}`);
+  return respuesta.data || [];
 };
 
-export const registrarSalida = async (datos: NuevaSalidaDTO): Promise<any> => {
-  const res = await apiFetch('/exits', {
-    method: 'POST',
-    body: JSON.stringify(datos),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || 'Error al registrar salida');
-  }
-  return data;
+export const registrarSalida = async (datos: NuevaSalidaDTO): Promise<unknown> => {
+  const respuesta = await api.post('/exits', datos);
+  return respuesta.data;
 };
