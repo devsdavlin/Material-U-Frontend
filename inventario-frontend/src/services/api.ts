@@ -43,7 +43,8 @@ export const apiFetch = async (
   endpoint: string,
   options: RequestInit = {}
 ): Promise<Response> => {
-  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const normalizedEndpoint = endpoint.trim().replace(/\/+$/, '');
+  const url = `${API_BASE_URL}${normalizedEndpoint.startsWith('/') ? normalizedEndpoint : `/${normalizedEndpoint}`}`;
 
   const headers = new Headers(options.headers ?? {});
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {

@@ -1,5 +1,5 @@
 import { API_BASE_URL } from './api';
-import { API_ROUTES } from '../utils/apiRoutes';
+import { API_ROUTES, buildApiUrl } from '../utils/apiRoutes';
 import { extractApiErrorMessage } from '../utils/errorHandling';
 
 export type LoginBackendResponse = {
@@ -13,7 +13,9 @@ export const loginBackend = async (
   email: string,
   password: string
 ): Promise<LoginBackendResponse> => {
-  const res = await fetch(`${API_BASE_URL}${API_ROUTES.auth.login}`, {
+  const loginUrl = buildApiUrl(API_ROUTES.auth.login);
+
+  const res = await fetch(loginUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),

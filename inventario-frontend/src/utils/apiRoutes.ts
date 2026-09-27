@@ -29,4 +29,7 @@ export const buildApiUrl = (route: string) => {
   return `${normalizedBase}${routeWithApiPrefix}`;
 };
 
-export const normalizeRoute = (route: string) => route.replace(/\/+/g, '/');
+export const normalizeRoute = (route: string) => {
+  const cleaned = (route || '').trim().replace(/\/+/g, '/').replace(/\/+$/, '');
+  return cleaned || '/';
+};
