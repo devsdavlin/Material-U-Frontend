@@ -2,12 +2,13 @@ import axios from 'axios';
 import { setOfflineMode } from '../utils/offlineMode';
 import { STORAGE_KEYS } from '../utils/storage';
 
-export const DEFAULT_API_BASE_URL = 'https://material-u-backend.onrender.com';
+export const DEFAULT_API_BASE_URL = 'https://material-u-backend.onrender.com/api';
 
 const normalizeBaseUrl = (value = ''): string => {
   const trimmed = value.trim();
-  if (!trimmed) return DEFAULT_API_BASE_URL;
-  return trimmed.replace(/\/+$/, '').replace(/\/api$/, '');
+  const cleaned = trimmed.replace(/\/+$/, '');
+  if (!cleaned) return DEFAULT_API_BASE_URL;
+  return cleaned.endsWith('/api') ? cleaned : `${cleaned}/api`;
 };
 
 export const API_BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_URL || '');
@@ -44,7 +45,10 @@ export const apiFetch = async (
   options: RequestInit = {}
 ): Promise<Response> => {
   const normalizedEndpoint = endpoint.trim().replace(/\/+$/, '');
-  const url = `${API_BASE_URL}${normalizedEndpoint.startsWith('/') ? normalizedEndpoint : `/${normalizedEndpoint}`}`;
+  const safeEndpoint = normalizedEndpoint.startsWith('/api')
+    ? normalizedEndpoint.replace(/^\/api/, '')
+    : normalizedEndpoint;
+  const url = `${API_BASE_URL}${safeEndpoint.startsWith('/') ? safeEndpoint : `/${safeEndpoint}`}`;
 
   const headers = new Headers(options.headers ?? {});
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {

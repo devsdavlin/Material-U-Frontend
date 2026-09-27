@@ -12,7 +12,7 @@ describe('API route conventions', () => {
   });
 
   it('builds clean URLs without duplicate slashes', () => {
-    expect(buildApiUrl('/materials/buscar')).toContain('/materials/buscar');
+    expect(buildApiUrl('/materials/buscar')).toContain('/api/materials/buscar');
     expect(normalizeRoute('//materials///buscar//')).toBe('/materials/buscar');
   });
 
@@ -20,7 +20,7 @@ describe('API route conventions', () => {
     vi.stubEnv('VITE_API_URL', '');
 
     expect(buildApiUrl('/users/login')).toBe(
-      'https://material-u-backend.onrender.com/users/login'
+      'https://material-u-backend.onrender.com/api/users/login'
     );
 
     vi.unstubAllEnvs();

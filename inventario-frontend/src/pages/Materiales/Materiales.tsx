@@ -16,20 +16,11 @@ export const Materiales: React.FC = () => {
       if (data && data.length > 0) {
         setMaterialesApi(data);
       } else {
-        // Fallback de demostración si aún no hay materiales en la base de datos
-        setMaterialesApi([
-          { id_material: 1, internal_code: 'MIG 001', material_name: 'PARRILLA ASADOR A GAS PLUS + BANDEJA LATERAL', unit: 'UN', category: 'Equipos', min_stock: 5 },
-          { id_material: 2, internal_code: 'MIG 002', material_name: 'LAVARROPAS ECO 48X60 CM FIRPLAK', unit: 'UN', category: 'Grifería', min_stock: 2 },
-          { id_material: 3, internal_code: 'MIG 003', material_name: 'CATALIZADOR EPOXICO X 1/4 TITO PABON', unit: 'GL', category: 'Pinturas', min_stock: 10 },
-        ]);
+        setMaterialesApi([]);
       }
     } catch (error) {
-      console.warn('Backend desconectado o error, usando datos de respaldo:', error);
-      setMaterialesApi([
-        { id_material: 1, internal_code: 'MIG 001', material_name: 'PARRILLA ASADOR A GAS PLUS + BANDEJA LATERAL', unit: 'UN', category: 'Equipos', min_stock: 5 },
-        { id_material: 2, internal_code: 'MIG 002', material_name: 'LAVARROPAS ECO 48X60 CM FIRPLAK', unit: 'UN', category: 'Grifería', min_stock: 2 },
-        { id_material: 3, internal_code: 'MIG 003', material_name: 'CATALIZADOR EPOXICO X 1/4 TITO PABON', unit: 'GL', category: 'Pinturas', min_stock: 10 },
-      ]);
+      console.warn('Backend desconectado o error.', error);
+      setMaterialesApi([]);
     } finally {
       setCargando(false);
     }

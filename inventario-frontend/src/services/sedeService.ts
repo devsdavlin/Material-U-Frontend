@@ -1,4 +1,5 @@
 import { api } from './api';
+import { API_ROUTES } from '../utils/apiRoutes';
 import type { Sede as SedeTipo } from '../types/Sede';
 
 export type Sede = SedeTipo & {
@@ -36,12 +37,23 @@ export const normalizarSedeId = (valor: string | number | null | undefined): str
 
 export const obtenerSedesActivas = async (): Promise<Sede[]> => {
   try {
-    const respuesta = await api.get('/warehouses');
+    const respuesta = await api.get(API_ROUTES.warehouses);
     const data = Array.isArray(respuesta.data) ? respuesta.data : [];
     return data.map(normalizarSedeBackend).filter((sede) => sede.id && sede.id !== '0');
   } catch (error) {
     console.warn('No se pudieron cargar las sedes desde el backend.', error);
     return [];
+  }
+};
+
+export const crearSede = async (nombre: string): Promise<Sede> => {
+  try {
+    const respuesta = await api.post(API_ROUTES.warehouses, {
+      warehouse_name: nombre.trim(),
+    });
+    return normalizarSedeBackend(respuesta.data);
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'No se pudo crear la sede');
   }
 };
 
@@ -85,11 +97,11 @@ export const limpiarSedeSeleccionada = (): void => {
 
 export const obtenerSedePorId = async (id: string): Promise<Sede | null> => {
   try {
-    const respuesta = await api.get(`/warehouses/${id}`);
+    const respuesta = await api.get(`${API_ROUTES.warehouses}/${id}`);
     return normalizarSedeBackend(respuesta.data);
   } catch {
     return null;
   }
 };
 
-export default { obtenerSedesActivas, obtenerSedePorId, guardarSedeSeleccionada, obtenerSedeSeleccionada };
+export default { obtenerSedesActivas, obtenerSedePorId, guardarSedeSeleccionada, obtenerSedeSeleccionada, crearSede };

@@ -1,4 +1,5 @@
 import { api } from './api';
+import { API_ROUTES } from '../utils/apiRoutes';
 import type { Usuario } from '../types/Usuario';
 
 const normalizarUsuarioBackend = (raw: any): Usuario => {
@@ -19,7 +20,7 @@ const normalizarUsuarioBackend = (raw: any): Usuario => {
 
 export const obtenerUsuariosActivos = async (): Promise<Usuario[]> => {
   try {
-    const respuesta = await api.get('/users');
+    const respuesta = await api.get(API_ROUTES.users);
     const data = Array.isArray(respuesta.data) ? respuesta.data : Array.isArray(respuesta.data?.data) ? respuesta.data.data : [];
     return data.map(normalizarUsuarioBackend).filter((usuario: Usuario) => usuario.id_user);
   } catch (error) {
@@ -28,8 +29,25 @@ export const obtenerUsuariosActivos = async (): Promise<Usuario[]> => {
   }
 };
 
-export const crearUsuario = async (): Promise<never> => {
-  throw new Error('La creación de usuarios aún no está disponible en el backend actual.');
+export const crearUsuario = async (payload: {
+  username: string;
+  email: string;
+  password: string;
+  rol: string;
+  warehouse_id?: number | string | null;
+}): Promise<Usuario> => {
+  try {
+    const respuesta = await api.post(API_ROUTES.users, {
+      username: payload.username,
+      email: payload.email,
+      password: payload.password,
+      rol: payload.rol,
+      warehouse_id: payload.warehouse_id ?? null,
+    });
+    return normalizarUsuarioBackend(respuesta.data);
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'No se pudo crear el usuario');
+  }
 };
 
 export const actualizarUsuario = async (): Promise<never> => {

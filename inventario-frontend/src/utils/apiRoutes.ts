@@ -1,15 +1,17 @@
-export const DEFAULT_API_BASE_URL = 'https://material-u-backend.onrender.com';
+export const DEFAULT_API_BASE_URL = 'https://material-u-backend.onrender.com/api';
 
 const normalizeBaseUrl = (value: string): string => {
   const trimmed = value.trim();
-  if (!trimmed) return DEFAULT_API_BASE_URL;
-  return trimmed.replace(/\/+$/, '').replace(/\/api$/, '');
+  const cleaned = trimmed.replace(/\/+$/, '');
+  if (!cleaned) return DEFAULT_API_BASE_URL;
+  return cleaned.endsWith('/api') ? cleaned : `${cleaned}/api`;
 };
 
 export const API_ROUTES = {
   auth: {
     login: '/users/login',
   },
+  users: '/users',
   materials: {
     buscar: '/materials/buscar',
     base: '/materials',
@@ -25,7 +27,10 @@ export const API_ROUTES = {
 export const buildApiUrl = (route: string) => {
   const normalizedBase = normalizeBaseUrl(import.meta.env.VITE_API_URL || '');
   const cleanRoute = normalizeRoute(route.startsWith('/') ? route : `/${route}`);
-  return `${normalizedBase}${cleanRoute}`;
+  const routeWithoutApiPrefix = cleanRoute.startsWith('/api')
+    ? cleanRoute.replace(/^\/api/, '')
+    : cleanRoute;
+  return `${normalizedBase}${routeWithoutApiPrefix}`;
 };
 
 export const normalizeRoute = (route: string) => {

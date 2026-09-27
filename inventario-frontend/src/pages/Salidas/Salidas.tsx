@@ -42,45 +42,9 @@ export const Salidas: React.FC = () => {
         setSalidasList(exitRes);
       }
     } catch (err) {
-      console.warn('Backend desconectado o error, usando datos locales:', err);
-      setMaterialesDisponibles([
-        {
-          id_inventory: 1,
-          material_id: 1,
-          material_name: 'PARRILLA ASADOR A GAS PLUS + BANDEJA LATERAL',
-          internal_code: 'MIG 001',
-          unit: 'UN',
-          category: 'Equipos',
-          activo: true,
-          current_stock: 15,
-          min_stock: 5,
-          estado: 'ok',
-        },
-        {
-          id_inventory: 2,
-          material_id: 2,
-          material_name: 'LAVARROPAS ECO 48X60 CM FIRPLAK',
-          internal_code: 'MIG 002',
-          unit: 'UN',
-          category: 'Grifería',
-          activo: true,
-          current_stock: 0,
-          min_stock: 2,
-          estado: 'agotado',
-        },
-        {
-          id_inventory: 3,
-          material_id: 3,
-          material_name: 'CATALIZADOR EPOXICO X 1/4 TITO PABON',
-          internal_code: 'MIG 003',
-          unit: 'GL',
-          category: 'Pinturas',
-          activo: true,
-          current_stock: 4,
-          min_stock: 10,
-          estado: 'bajo_minimo',
-        },
-      ]);
+      console.warn('Backend desconectado o error.', err);
+      setMaterialesDisponibles([]);
+      setSalidasList([]);
     } finally {
       setCargando(false);
     }
