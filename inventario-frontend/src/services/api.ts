@@ -2,9 +2,11 @@ import axios from 'axios';
 import { setOfflineMode } from '../utils/offlineMode';
 import { STORAGE_KEYS } from '../utils/storage';
 
+export const DEFAULT_API_BASE_URL = 'https://material-u-backend.onrender.com';
+
 const normalizeBaseUrl = (value = ''): string => {
   const trimmed = value.trim();
-  if (!trimmed) return '';
+  if (!trimmed) return DEFAULT_API_BASE_URL;
   return trimmed.replace(/\/+$/, '').replace(/\/api$/, '');
 };
 

@@ -1,6 +1,8 @@
+export const DEFAULT_API_BASE_URL = 'https://material-u-backend.onrender.com';
+
 const normalizeBaseUrl = (value: string): string => {
   const trimmed = value.trim();
-  if (!trimmed) return '';
+  if (!trimmed) return DEFAULT_API_BASE_URL;
   return trimmed.replace(/\/+$/, '').replace(/\/api$/, '');
 };
 

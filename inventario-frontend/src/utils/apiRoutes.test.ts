@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { API_ROUTES, buildApiUrl, normalizeRoute } from './apiRoutes';
 
 describe('API route conventions', () => {
@@ -14,5 +14,15 @@ describe('API route conventions', () => {
   it('builds clean URLs without duplicate slashes', () => {
     expect(buildApiUrl('/api/materials/buscar')).toContain('/api/materials/buscar');
     expect(normalizeRoute('//api///materials//buscar')).toBe('/api/materials/buscar');
+  });
+
+  it('falls back to the Render backend when VITE_API_URL is missing', () => {
+    vi.stubEnv('VITE_API_URL', '');
+
+    expect(buildApiUrl('/api/users/login')).toBe(
+      'https://material-u-backend.onrender.com/api/users/login'
+    );
+
+    vi.unstubAllEnvs();
   });
 });
