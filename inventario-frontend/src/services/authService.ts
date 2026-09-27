@@ -1,4 +1,3 @@
-import { API_BASE_URL } from './api';
 import { API_ROUTES, buildApiUrl } from '../utils/apiRoutes';
 import { extractApiErrorMessage } from '../utils/errorHandling';
 
