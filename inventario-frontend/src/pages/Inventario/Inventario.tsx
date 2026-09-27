@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { guardarSedeSeleccionada, normalizarSedeId, obtenerSedeSeleccionada, obtenerSedesActivas } from '../../mocks/sedes';
+import { guardarSedeSeleccionada, normalizarSedeId, obtenerSedeSeleccionada, obtenerSedesActivas } from '../../services/sedeService';
 import {
   obtenerMiInventario,
   type ItemInventarioBackend,
@@ -9,24 +9,29 @@ import {
 
 export const Inventario: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const [sedes, setSedes] = useState<Array<{ id: string; nombre: string; ubicacion: string }>>([]);
   const sedePersistida = obtenerSedeSeleccionada();
   const sedeIdActiva = normalizarSedeId(searchParams.get('sedeId') ?? sedePersistida?.id ?? 's1');
   const nombreSede =
     searchParams.get('nombreSede') ??
     sedePersistida?.nombre ??
-    obtenerSedesActivas().find((sede) => sede.id === sedeIdActiva)?.nombre ??
+    sedes.find((sede) => sede.id === sedeIdActiva)?.nombre ??
     'La Vega';
+
+  useEffect(() => {
+    void obtenerSedesActivas().then(setSedes);
+  }, []);
   const [filtroEstado, setFiltroEstado] = useState<EstadoInventario>('todos');
   const [busqueda, setBusqueda] = useState<string>('');
   const [items, setItems] = useState<ItemInventarioBackend[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
 
   useEffect(() => {
-    const sedeActual = obtenerSedesActivas().find((sede) => sede.id === sedeIdActiva);
+    const sedeActual = sedes.find((sede) => sede.id === sedeIdActiva);
     if (sedeActual) {
       guardarSedeSeleccionada(sedeActual);
     }
-  }, [sedeIdActiva]);
+  }, [sedeIdActiva, sedes]);
 
   useEffect(() => {
     const timer = setTimeout(async () => {

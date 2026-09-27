@@ -2,7 +2,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { materialService, type Material } from '../services/materialService';
-import { MOCK_INVENTARIO } from '../mocks/inventario';
 import type { ItemInventario } from '../types/Inventario';
 
 interface EntradaContexto {
@@ -44,7 +43,7 @@ const InventarioContext = createContext<InventarioContextType>({} as InventarioC
 
 export const InventarioProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [materiales, setMateriales] = useState<Material[]>([]);
-  const [inventario, setInventario] = useState<ItemInventario[]>(MOCK_INVENTARIO);
+  const [inventario] = useState<ItemInventario[]>([]);
   const [entradas, setEntradas] = useState<EntradaContexto[]>([]);
   const [salidas, setSalidas] = useState<SalidaContexto[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
@@ -54,10 +53,6 @@ export const InventarioProvider: React.FC<{ children: ReactNode }> = ({ children
       setCargando(true);
       const data = await materialService.obtenerTodos();
       setMateriales(data);
-      setInventario((prev) => {
-        if (prev.length === 0) return MOCK_INVENTARIO;
-        return prev;
-      });
     } catch (error) {
       console.error('Error conectando con el backend:', error);
     } finally {

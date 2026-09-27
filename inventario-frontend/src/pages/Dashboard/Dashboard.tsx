@@ -1,8 +1,8 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { useInventario } from '../../context/InventarioContext';
-import { guardarSedeSeleccionada, normalizarSedeId, obtenerSedeSeleccionada, obtenerSedesActivas } from '../../mocks/sedes';
+import { guardarSedeSeleccionada, normalizarSedeId, obtenerSedeSeleccionada, obtenerSedesActivas, type Sede } from '../../services/sedeService';
 import type { ItemInventario } from '../../types/Inventario';
 
 const green = '#123b2b';
@@ -59,6 +59,11 @@ export const Dashboard: React.FC = () => {
  const { inventario = [], entradas = [], salidas = [] } = useInventario();
  const navigate = useNavigate();
  const [searchParams] = useSearchParams();
+ const [sedes, setSedes] = useState<Sede[]>([]);
+
+ useEffect(() => {
+   void obtenerSedesActivas().then(setSedes);
+ }, []);
 
  // 1. Priorizamos la sede que viene en la URL (si el Admin hizo clic en una tarjeta)
  // 2. Si no hay URL, usamos la sede del almacenista logueado
@@ -72,27 +77,25 @@ export const Dashboard: React.FC = () => {
  const sedeNombre =
    nombreSedeURL ??
    sedePersistida?.nombre ??
-   obtenerSedesActivas().find((s) => s.id === sedeIdActiva)?.nombre ??
+   sedes.find((s) => s.id === sedeIdActiva)?.nombre ??
    'La Vega';
 
  React.useEffect(() => {
-   const sedeActual = obtenerSedesActivas().find((sede) => sede.id === sedeIdActiva);
+   const sedeActual = sedes.find((sede) => sede.id === sedeIdActiva);
    if (sedeActual) {
      guardarSedeSeleccionada(sedeActual);
    }
- }, [sedeIdActiva]);
+ }, [sedeIdActiva, sedes]);
 
- // Filtramos todo solo para su sede
  const inventarioSede = useMemo<ItemInventario[]>(() => {
    return inventario.filter((item: ItemInventario) => item.sedeId === sedeIdActiva);
  }, [inventario, sedeIdActiva]);
 
- // KPIs calculados[cite: 13]
  const totalMateriales = inventarioSede.length;
  const conStock = inventarioSede.filter((i: ItemInventario) => i.estado === 'CON_STOCK').length;
  const agotados = inventarioSede.filter((i: ItemInventario) => i.estado === 'AGOTADO').length;
  const negativos = inventarioSede.filter((i: ItemInventario) => i.estado === 'NEGATIVO').length;
- const valorTotal = inventarioSede.reduce<number>((acc, i) => acc + Number(i.valorTotal || 0), 0);
+ const valorTotal = inventarioSede.reduce<number>((acc: number, i: ItemInventario) => acc + Number(i.valorTotal || 0), 0);
  const porcDisponible = totalMateriales > 0 ? Math.round((conStock / totalMateriales) * 100) : 100;
 
  const topMateriales = useMemo(() => {

@@ -1,13 +1,16 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { guardarSedeSeleccionada, obtenerSedesActivas } from '../../mocks/sedes';
+import { guardarSedeSeleccionada, obtenerSedesActivas, type Sede } from '../../services/sedeService';
 
 export const SeleccionSede: React.FC = () => {
   const { usuario } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [sedes, setSedes] = useState<Sede[]>([]);
 
-  const sedes = useMemo(() => obtenerSedesActivas(), []);
+  useEffect(() => {
+    void obtenerSedesActivas().then(setSedes);
+  }, []);
 
   return (
     <div style={{ padding: '40px 20px', maxWidth: '1000px', margin: '0 auto', animation: 'fadeIn 0.5s ease' }}>

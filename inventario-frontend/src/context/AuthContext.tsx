@@ -3,7 +3,7 @@ import React, { createContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Usuario } from '../types/Usuario';
 import { loginBackend } from '../services/authService';
-import { guardarSedeSeleccionada, limpiarSedeSeleccionada, normalizarSedeId, obtenerSedesActivas } from '../mocks/sedes';
+import { guardarSedeSeleccionada, limpiarSedeSeleccionada, normalizarSedeId } from '../services/sedeService';
 import { STORAGE_KEYS } from '../utils/storage';
 
 const normalizarRol = (rol: unknown): Usuario['rol'] => {
@@ -102,11 +102,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (token && rawUser) {
         const user = mapUsuarioDesdeBackend(rawUser as Record<string, unknown>, email);
-        const sedeInicial = obtenerSedesActivas().find((sede) => sede.id === user.sedeId)
-          ?? obtenerSedesActivas()[0];
 
-        if (sedeInicial) {
-          guardarSedeSeleccionada(sedeInicial);
+        if (user.sedeId) {
+          guardarSedeSeleccionada({
+            id: String(user.sedeId),
+            nombre: user.nombre ?? user.name ?? 'Sede',
+            ubicacion: '',
+          });
         }
 
         guardarSesion(user, token);
