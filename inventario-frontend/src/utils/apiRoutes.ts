@@ -8,25 +8,24 @@ const normalizeBaseUrl = (value: string): string => {
 
 export const API_ROUTES = {
   auth: {
-    login: '/api/users/login',
+    login: '/users/login',
   },
   materials: {
-    buscar: '/api/materials/buscar',
-    base: '/api/materials',
+    buscar: '/materials/buscar',
+    base: '/materials',
   },
-  inventory: '/api/inventory',
-  entries: '/api/entries',
-  exits: '/api/exits',
-  warehouses: '/api/warehouses',
-  dashboard: '/api/dashboard/mi-sede',
-  money: '/api/money/mi-sede',
+  inventory: '/inventory',
+  entries: '/entries',
+  exits: '/exits',
+  warehouses: '/warehouses',
+  dashboard: '/dashboard/mi-sede',
+  money: '/money/mi-sede',
 } as const;
 
 export const buildApiUrl = (route: string) => {
   const normalizedBase = normalizeBaseUrl(import.meta.env.VITE_API_URL || '');
   const cleanRoute = normalizeRoute(route.startsWith('/') ? route : `/${route}`);
-  const routeWithApiPrefix = cleanRoute.startsWith('/api/') ? cleanRoute : `/api${cleanRoute}`;
-  return `${normalizedBase}${routeWithApiPrefix}`;
+  return `${normalizedBase}${cleanRoute}`;
 };
 
 export const normalizeRoute = (route: string) => {

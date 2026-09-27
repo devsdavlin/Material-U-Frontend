@@ -41,6 +41,6 @@ export const obtenerMiInventario = async (
   }
   query.set('limite', '100');
 
-  const respuesta = await api.get<RespuestaInventario>(`/inventario?${query.toString()}`);
+  const respuesta = await api.get<RespuestaInventario>(`/inventory?${query.toString()}`);
   return respuesta.data;
 };

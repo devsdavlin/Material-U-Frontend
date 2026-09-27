@@ -14,7 +14,7 @@ describe('loginBackend', () => {
     const result = await loginBackend('admin@test.com', 'secret');
 
     expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/users/login'),
+      expect.stringContaining('/users/login'),
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
