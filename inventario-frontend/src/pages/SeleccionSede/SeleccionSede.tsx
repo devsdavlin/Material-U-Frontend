@@ -9,8 +9,10 @@ export const SeleccionSede: React.FC = () => {
   const [sedes, setSedes] = useState<Sede[]>([]);
 
   useEffect(() => {
-    void obtenerSedesActivas().then(setSedes);
+    void obtenerSedesActivas().then((data) => setSedes(Array.isArray(data) ? data : []));
   }, []);
+
+  const listaSedes = Array.isArray(sedes) ? sedes : [];
 
   return (
     <div style={{ padding: '40px 20px', maxWidth: '1000px', margin: '0 auto', animation: 'fadeIn 0.5s ease' }}>
@@ -24,7 +26,7 @@ export const SeleccionSede: React.FC = () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px' }}>
-        {sedes.map((sede) => (
+        {listaSedes.map((sede) => (
           <div
             key={sede.id}
             onClick={() => {

@@ -2,6 +2,17 @@ import { api } from './api';
 import { API_ROUTES } from '../utils/apiRoutes';
 import type { Usuario } from '../types/Usuario';
 
+const coerceArray = (payload: unknown): unknown[] => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === 'object') {
+    const data = payload as Record<string, unknown>;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data.users)) return data.users;
+    if (Array.isArray(data.items)) return data.items;
+  }
+  return [];
+};
+
 const normalizarUsuarioBackend = (raw: any): Usuario => {
   const warehouseId = Number(raw?.warehouse_id ?? raw?.warehouseId ?? raw?.warehouse_id ?? 1);
   const sedeId = String(raw?.sedeId ?? raw?.sede_id ?? raw?.warehouse_id ?? raw?.warehouseId ?? '1');
@@ -21,7 +32,7 @@ const normalizarUsuarioBackend = (raw: any): Usuario => {
 export const obtenerUsuariosActivos = async (): Promise<Usuario[]> => {
   try {
     const respuesta = await api.get(API_ROUTES.users);
-    const data = Array.isArray(respuesta.data) ? respuesta.data : Array.isArray(respuesta.data?.data) ? respuesta.data.data : [];
+    const data = coerceArray(respuesta.data) as any[];
     return data.map(normalizarUsuarioBackend).filter((usuario: Usuario) => usuario.id_user);
   } catch (error) {
     console.warn('No se pudieron cargar los usuarios desde el backend.', error);

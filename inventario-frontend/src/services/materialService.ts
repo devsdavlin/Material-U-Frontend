@@ -1,6 +1,17 @@
 import { api } from './api';
 import { API_ROUTES } from '../utils/apiRoutes';
 
+const coerceArray = (payload: unknown): unknown[] => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === 'object') {
+    const data = payload as Record<string, unknown>;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data.items)) return data.items;
+    if (Array.isArray(data.materials)) return data.materials;
+  }
+  return [];
+};
+
 export interface Material {
   id: string;
   codigo: string;
@@ -44,7 +55,8 @@ const parseError = (error: unknown, fallback: string): Error => {
 export const obtenerMateriales = async (): Promise<MaterialBackend[]> => {
   try {
     const respuesta = await api.get<MaterialBackend[]>(`${API_ROUTES.materials.buscar}?q=&limite=50`);
-    return respuesta.data ?? [];
+    const data = coerceArray(respuesta.data) as MaterialBackend[];
+    return data;
   } catch (error) {
     console.warn('Backend de materiales no disponible.', error);
     return [];
@@ -81,7 +93,8 @@ export const materialService = {
   obtenerTodos: async (): Promise<Material[]> => {
     try {
       const respuesta = await api.get<MaterialBackend[]>(`${API_ROUTES.materials.buscar}?q=&limite=50`);
-      return (respuesta.data ?? []).map(mapMaterialBackendToFrontend);
+      const data = coerceArray(respuesta.data) as MaterialBackend[];
+      return data.map(mapMaterialBackendToFrontend);
     } catch (error) {
       console.warn('Backend de materiales no disponible.', error);
       return [];

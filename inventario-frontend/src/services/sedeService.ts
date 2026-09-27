@@ -11,6 +11,17 @@ export type Sede = SedeTipo & {
 
 const STORAGE_KEY_SEDE_SELECCIONADA = 'inventario_sede_seleccionada';
 
+const coerceArray = (payload: unknown): unknown[] => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === 'object') {
+    const data = payload as Record<string, unknown>;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data.warehouses)) return data.warehouses;
+    if (Array.isArray(data.items)) return data.items;
+  }
+  return [];
+};
+
 const normalizarSedeBackend = (raw: any): Sede => {
   const id = String(
     raw?.id_warehouse ?? raw?.warehouse_id ?? raw?.id ?? raw?.warehouseId ?? raw?.id_sede ?? ''
@@ -38,7 +49,7 @@ export const normalizarSedeId = (valor: string | number | null | undefined): str
 export const obtenerSedesActivas = async (): Promise<Sede[]> => {
   try {
     const respuesta = await api.get(API_ROUTES.warehouses);
-    const data = Array.isArray(respuesta.data) ? respuesta.data : [];
+    const data = coerceArray(respuesta.data) as any[];
     return data.map(normalizarSedeBackend).filter((sede) => sede.id && sede.id !== '0');
   } catch (error) {
     console.warn('No se pudieron cargar las sedes desde el backend.', error);

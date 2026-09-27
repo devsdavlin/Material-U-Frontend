@@ -19,7 +19,7 @@ export const Inventario: React.FC = () => {
     'La Vega';
 
   useEffect(() => {
-    void obtenerSedesActivas().then(setSedes);
+    void obtenerSedesActivas().then((data) => setSedes(Array.isArray(data) ? data : []));
   }, []);
   const [filtroEstado, setFiltroEstado] = useState<EstadoInventario>('todos');
   const [busqueda, setBusqueda] = useState<string>('');
