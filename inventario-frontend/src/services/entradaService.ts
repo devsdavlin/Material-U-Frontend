@@ -27,9 +27,24 @@ export interface NuevaEntradaDTO {
   entry_date?: string;
 }
 
+const coerceArray = (payload: unknown): EntradaBackend[] => {
+  if (Array.isArray(payload)) return payload as EntradaBackend[];
+  if (payload && typeof payload === 'object') {
+    const data = payload as Record<string, unknown>;
+    if (Array.isArray(data.data)) return data.data as EntradaBackend[];
+    if (Array.isArray(data.items)) return data.items as EntradaBackend[];
+  }
+  return [];
+};
+
 export const obtenerEntradas = async (limite = 50): Promise<EntradaBackend[]> => {
-  const respuesta = await api.get<EntradaBackend[]>(`/entries?limite=${limite}`);
-  return respuesta.data || [];
+  try {
+    const respuesta = await api.get<EntradaBackend[] | { data?: EntradaBackend[]; items?: EntradaBackend[]; message?: string }>(`/entries?limite=${limite}`);
+    return coerceArray(respuesta.data);
+  } catch (error) {
+    console.warn('No se pudieron cargar las entradas:', error);
+    return [];
+  }
 };
 
 export const registrarEntrada = async (datos: NuevaEntradaDTO): Promise<unknown> => {

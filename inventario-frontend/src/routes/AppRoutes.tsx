@@ -11,41 +11,74 @@ import { Inventario } from '../pages/Inventario/Inventario';
 import { Entradas } from '../pages/Entradas/Entradas';
 import { Salidas } from '../pages/Salidas/Salidas';
 import { Materiales } from '../pages/Materiales/Materiales';
-import { obtenerSedesActivas, guardarSedeSeleccionada, type Sede } from '../services/sedeService';
-import { obtenerUsuariosActivos } from '../services/usuarioService';
+import { obtenerSedesActivas, guardarSedeSeleccionada, crearSede, type Sede } from '../services/sedeService';
+import { obtenerUsuariosActivos, crearUsuario } from '../services/usuarioService';
 import type { Usuario } from '../types/Usuario';
 
 const Usuarios = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [form, setForm] = useState({ username: '', email: '', password: '', rol: 'Almacenista', warehouse_id: '' });
+  const [enviando, setEnviando] = useState(false);
+
+  const cargar = async () => {
+    try {
+      const data = await obtenerUsuariosActivos();
+      setUsuarios(data);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   useEffect(() => {
-    let activo = true;
-
-    const cargar = async () => {
-      try {
-        const data = await obtenerUsuariosActivos();
-        if (activo) {
-          setUsuarios(data);
-        }
-      } finally {
-        if (activo) {
-          setCargando(false);
-        }
-      }
-    };
-
     void cargar();
-    return () => {
-      activo = false;
-    };
   }, []);
 
   const usuariosActivos = usuarios.filter((usuario: Usuario) => usuario.rol !== 'Administrador' && usuario.rol !== 'ADMINISTRADOR');
 
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!form.username.trim() || !form.email.trim() || !form.password.trim()) return;
+
+    setEnviando(true);
+    try {
+      await crearUsuario({
+        username: form.username.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        rol: form.rol,
+        warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null,
+      });
+      setForm({ username: '', email: '', password: '', rol: 'Almacenista', warehouse_id: '' });
+      await cargar();
+    } catch (error) {
+      console.error('No se pudo crear el usuario:', error);
+      alert(error instanceof Error ? error.message : 'No se pudo crear el usuario');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
   return (
     <div style={{ padding: '32px 24px', minHeight: '100vh', backgroundColor: '#f6f7f5' }}>
       <h1 style={{ margin: '0 0 24px 0', fontSize: '2.6rem', fontWeight: 800, color: '#0f291e' }}>Gestión de Usuarios</h1>
+
+      <div style={{ backgroundColor: '#fff', borderRadius: '18px', padding: '20px', marginBottom: '24px', border: '1px solid #e7ece8' }}>
+        <h3 style={{ margin: '0 0 16px 0', color: '#0f291e' }}>Crear usuario</h3>
+        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+          <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="Nombre de usuario" style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #d1d5db' }} required />
+          <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Correo" style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #d1d5db' }} required />
+          <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Contraseña" style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #d1d5db' }} required />
+          <select value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value as Usuario['rol'] })} style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #d1d5db' }}>
+            <option value="Almacenista">Almacenista</option>
+            <option value="Administrador">Administrador</option>
+          </select>
+          <input type="number" value={form.warehouse_id} onChange={(e) => setForm({ ...form, warehouse_id: e.target.value })} placeholder="ID sede (opcional)" style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #d1d5db' }} />
+          <button type="submit" disabled={enviando} style={{ backgroundColor: '#123b2b', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px 18px', fontWeight: 700, cursor: 'pointer' }}>
+            {enviando ? 'Guardando...' : 'Crear usuario'}
+          </button>
+        </form>
+      </div>
 
       {cargando ? (
         <p style={{ color: '#6b7280' }}>Cargando usuarios del backend...</p>
@@ -71,32 +104,52 @@ const Usuarios = () => {
 const Sedes = () => {
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [nombreSede, setNombreSede] = useState('');
+  const [enviando, setEnviando] = useState(false);
+
+  const cargar = async () => {
+    try {
+      const data = await obtenerSedesActivas();
+      setSedes(data);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   useEffect(() => {
-    let activo = true;
-
-    const cargar = async () => {
-      try {
-        const data = await obtenerSedesActivas();
-        if (activo) {
-          setSedes(data);
-        }
-      } finally {
-        if (activo) {
-          setCargando(false);
-        }
-      }
-    };
-
     void cargar();
-    return () => {
-      activo = false;
-    };
   }, []);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!nombreSede.trim()) return;
+
+    setEnviando(true);
+    try {
+      await crearSede(nombreSede.trim());
+      setNombreSede('');
+      await cargar();
+    } catch (error) {
+      console.error('No se pudo crear la sede:', error);
+      alert(error instanceof Error ? error.message : 'No se pudo crear la sede');
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   return (
     <div style={{ padding: '32px 24px', minHeight: '100vh', backgroundColor: '#f6f7f5' }}>
       <h1 style={{ margin: '0 0 24px 0', fontSize: '2.6rem', fontWeight: 800, color: '#0f291e' }}>Gestión de Sedes</h1>
+
+      <div style={{ backgroundColor: '#fff', borderRadius: '18px', padding: '20px', marginBottom: '24px', border: '1px solid #e7ece8' }}>
+        <h3 style={{ margin: '0 0 16px 0', color: '#0f291e' }}>Crear sede</h3>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <input value={nombreSede} onChange={(e) => setNombreSede(e.target.value)} placeholder="Nombre de la sede" style={{ flex: '1 1 280px', padding: '10px 12px', borderRadius: '10px', border: '1px solid #d1d5db' }} required />
+          <button type="submit" disabled={enviando} style={{ backgroundColor: '#123b2b', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px 18px', fontWeight: 700, cursor: 'pointer' }}>
+            {enviando ? 'Guardando...' : 'Crear sede'}
+          </button>
+        </form>
+      </div>
 
       {cargando ? (
         <p style={{ color: '#6b7280' }}>Cargando sedes del backend...</p>

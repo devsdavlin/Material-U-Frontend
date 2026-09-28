@@ -27,9 +27,24 @@ export interface NuevaSalidaDTO {
   exit_date?: string;
 }
 
+const coerceArray = (payload: unknown): SalidaBackend[] => {
+  if (Array.isArray(payload)) return payload as SalidaBackend[];
+  if (payload && typeof payload === 'object') {
+    const data = payload as Record<string, unknown>;
+    if (Array.isArray(data.data)) return data.data as SalidaBackend[];
+    if (Array.isArray(data.items)) return data.items as SalidaBackend[];
+  }
+  return [];
+};
+
 export const obtenerSalidas = async (limite = 50): Promise<SalidaBackend[]> => {
-  const respuesta = await api.get<SalidaBackend[]>(`/exits?limite=${limite}`);
-  return respuesta.data || [];
+  try {
+    const respuesta = await api.get<SalidaBackend[] | { data?: SalidaBackend[]; items?: SalidaBackend[]; message?: string }>(`/exits?limite=${limite}`);
+    return coerceArray(respuesta.data);
+  } catch (error) {
+    console.warn('No se pudieron cargar las salidas:', error);
+    return [];
+  }
 };
 
 export const registrarSalida = async (datos: NuevaSalidaDTO): Promise<unknown> => {

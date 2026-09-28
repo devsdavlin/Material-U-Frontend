@@ -116,25 +116,29 @@ export const Dashboard: React.FC = () => {
          </p>
        </div>
        <div style={{ display: 'flex', gap: '12px' }}>
-         <button
-           onClick={() => navigate('/entradas')}
-           style={{
-             backgroundColor: '#123b2b', color: '#fff', border: 'none', padding: '12px 20px',
-             borderRadius: '30px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem',
-             display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(18, 59, 43, 0.15)'
-           }}
-         >
-           <span>+</span> Nuevo Ingreso
-         </button>
-         <button
-           onClick={() => navigate('/salidas')}
-           style={{
-             backgroundColor: '#fff', color: '#123b2b', border: '1px solid #123b2b', padding: '12px 20px',
-             borderRadius: '30px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem'
-           }}
-         >
-           Generar Salida
-         </button>
+         {usuario?.rol !== 'Administrador' && usuario?.rol !== 'ADMINISTRADOR' && (
+           <>
+             <button
+               onClick={() => navigate('/entradas')}
+               style={{
+                 backgroundColor: '#123b2b', color: '#fff', border: 'none', padding: '12px 20px',
+                 borderRadius: '30px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem',
+                 display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(18, 59, 43, 0.15)'
+               }}
+             >
+               <span>+</span> Nuevo Ingreso
+             </button>
+             <button
+               onClick={() => navigate('/salidas')}
+               style={{
+                 backgroundColor: '#fff', color: '#123b2b', border: '1px solid #123b2b', padding: '12px 20px',
+                 borderRadius: '30px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem'
+               }}
+             >
+               Generar Salida
+             </button>
+           </>
+         )}
        </div>
      </div>
 
