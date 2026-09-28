@@ -11,6 +11,7 @@ import {
   obtenerMiInventario,
   type ItemInventarioBackend,
 } from '../../services/inventarioService';
+import { obtenerMateriales, type MaterialBackend } from '../../services/materialService';
 import { getLocalSaveWarning } from '../../utils/offlineMode';
 
 export const Salidas: React.FC = () => {
@@ -31,16 +32,29 @@ export const Salidas: React.FC = () => {
   const cargarDatos = async () => {
     setCargando(true);
     try {
-      const [invRes, exitRes] = await Promise.all([
+      const [invRes, exitRes, materialesRes] = await Promise.all([
         obtenerMiInventario('todos'),
         obtenerSalidas(50),
+        obtenerMateriales(),
       ]);
-      if (invRes && invRes.items) {
-        setMaterialesDisponibles(invRes.items);
-      }
-      if (exitRes) {
-        setSalidasList(exitRes);
-      }
+
+      const materiales = Array.isArray(invRes?.items) && invRes.items.length > 0
+        ? invRes.items
+        : (materialesRes as MaterialBackend[]).map((item) => ({
+            id_inventory: Number(item.id_material ?? 0),
+            material_id: Number(item.id_material ?? 0),
+            material_name: item.material_name,
+            internal_code: item.internal_code,
+            unit: item.unit,
+            category: item.category,
+            activo: true,
+            current_stock: 0,
+            min_stock: Number(item.min_stock ?? 0),
+            estado: 'ok' as const,
+          }));
+
+      setMaterialesDisponibles(materiales);
+      setSalidasList(Array.isArray(exitRes) ? exitRes : []);
     } catch (err) {
       console.warn('Backend desconectado o error.', err);
       setMaterialesDisponibles([]);

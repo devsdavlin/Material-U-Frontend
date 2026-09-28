@@ -155,7 +155,7 @@ const Sedes = () => {
         <p style={{ color: '#6b7280' }}>Cargando sedes del backend...</p>
       ) : sedes.length === 0 ? (
         <div style={{ backgroundColor: '#fff', borderRadius: '18px', padding: '24px', color: '#6b7280' }}>
-          No hay sedes disponibles desde el backend real.
+          No hay sedes disponibles.
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
