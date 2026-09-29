@@ -15,9 +15,9 @@ export const SeleccionSede: React.FC = () => {
   const listaSedes = Array.isArray(sedes) ? sedes : [];
 
   return (
-    <div style={{ padding: '40px 20px', maxWidth: '1000px', margin: '0 auto', animation: 'fadeIn 0.5s ease' }}>
+    <div style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.5s ease' }}>
       <div style={{ textAlign: 'center', marginBottom: '50px' }}>
-        <h1 style={{ fontSize: '2.5rem', color: '#0f291e', fontWeight: '800', margin: '0 0 10px 0' }}>
+        <h1 style={{ fontSize: '3.2rem', color: '#0f291e', fontWeight: '800', margin: '0 0 10px 0', letterSpacing: '-0.06em' }}>
           Bienvenido, {usuario?.nombre}
         </h1>
         <p style={{ color: '#6b7280', fontSize: '1.1rem', margin: 0 }}>
@@ -25,7 +25,7 @@ export const SeleccionSede: React.FC = () => {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '28px' }}>
         {listaSedes.map((sede) => (
           <div
             key={sede.id}
@@ -35,43 +35,64 @@ export const SeleccionSede: React.FC = () => {
             }}
             style={{
               backgroundColor: '#ffffff',
-              borderRadius: '24px',
-              padding: '40px 20px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
+              borderRadius: '22px',
+              padding: '22px 18px',
+              boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)',
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center',
-              border: '2px solid transparent',
-              transition: 'all 0.3s ease',
+              border: '1px solid #e5e7eb',
+              transition: 'all 0.25s ease',
             }}
             onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'translateY(-10px)';
-              e.currentTarget.style.border = '2px solid #fadc51'; // Borde rosadito 
-              e.currentTarget.style.boxShadow = '0 20px 40px rgba(236, 72, 153, 0.15)';
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 16px 28px rgba(15, 23, 42, 0.1)';
             }}
             onMouseOut={(e) => {
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.border = '2px solid transparent';
-              e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.05)';
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.06)';
             }}
           >
-            <div style={{ backgroundColor: '#fdf2f8', width: '90px', height: '90px', display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '50%', marginBottom: '20px' }}>
-              <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="#123b2b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 20V7l8-4 8 4v13" />
-                <path d="M9 20v-6h6v6M8 10h.01M12 10h.01M16 10h.01" />
-              </svg>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+              <div style={{ width: '54px', height: '54px', borderRadius: '50%', backgroundColor: '#edf6f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#123b2b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 20V7l8-4 8 4v13" />
+                  <path d="M9 20v-6h6v6M8 10h.01M12 10h.01M16 10h.01" />
+                </svg>
+              </div>
+              <button
+                type="button"
+                style={{
+                  backgroundColor: '#eef6f5',
+                  border: '1px solid #dfeae8',
+                  color: '#123b2b',
+                  borderRadius: '999px',
+                  padding: '8px 14px',
+                  fontWeight: '700',
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  pointerEvents: 'none',
+                }}
+              >
+                Seleccionar
+              </button>
             </div>
-            <h2 style={{ margin: '0 0 8px 0', color: '#1f2937', fontSize: '1.5rem' }}>{sede.nombre}</h2>
-            <p style={{ margin: '0 0 24px 0', color: '#9ca3af', fontSize: '0.95rem' }}>{sede.ubicacion}</p>
-            
+
+            <h2 style={{ margin: '0 0 8px 0', color: '#1f2937', fontSize: '2.1rem', fontWeight: '800', lineHeight: 1.2 }}>{sede.nombre}</h2>
+            <p style={{ margin: '0 0 24px 0', color: '#6b7280', fontSize: '1rem', minHeight: '36px' }}>{sede.ubicacion || 'Sin dirección registrada'}</p>
+
             <button style={{
-              backgroundColor: '#123b2b', color: '#fff', border: 'none',
-              padding: '12px 28px', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem',
-              pointerEvents: 'none' // El click lo recibe la tarjeta completa
+              backgroundColor: '#123b2b',
+              color: '#fff',
+              border: 'none',
+              padding: '12px 18px',
+              borderRadius: '12px',
+              fontWeight: '700',
+              fontSize: '1rem',
+              cursor: 'pointer',
+              marginTop: 'auto',
             }}>
-              Ingresar a Sede ➔
+              Ingresar a Sede →
             </button>
           </div>
         ))}

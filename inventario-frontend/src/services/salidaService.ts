@@ -5,15 +5,14 @@ export interface SalidaBackend {
   exit_number: string;
   warehouse_id: number;
   material_id: number;
-  cost_center: string;
+  cost_center: string | null;
   quantity: number;
   unit_value: number;
   total_value: number;
-  exit_date: string;
-  internal_code?: string;
+  exit_date: string | null;
   materials?: {
     material_name: string;
-    internal_code: string;
+    internal_code: string | null;
     unit: string;
   };
 }
@@ -24,30 +23,27 @@ export interface NuevaSalidaDTO {
   quantity: number;
   unit_value: number;
   cost_center: string;
-  exit_date?: string;
+  exit_date?: string; // YYYY-MM-DD
 }
 
-const coerceArray = (payload: unknown): SalidaBackend[] => {
-  if (Array.isArray(payload)) return payload as SalidaBackend[];
-  if (payload && typeof payload === 'object') {
-    const data = payload as Record<string, unknown>;
-    if (Array.isArray(data.data)) return data.data as SalidaBackend[];
-    if (Array.isArray(data.items)) return data.items as SalidaBackend[];
-  }
-  return [];
+// El backend responde: { ok, exits: [...], pagination }
+export const obtenerSalidas = async (
+  limite = 50,
+  warehouseId?: number
+): Promise<SalidaBackend[]> => {
+  const respuesta = await api.get<{ exits?: SalidaBackend[] }>('/exits', {
+    params: { limit: limite, ...(warehouseId ? { warehouse_id: warehouseId } : {}) },
+  });
+  const exits = respuesta.data?.exits;
+  return Array.isArray(exits) ? exits : [];
 };
 
-export const obtenerSalidas = async (limite = 50): Promise<SalidaBackend[]> => {
-  try {
-    const respuesta = await api.get<SalidaBackend[] | { data?: SalidaBackend[]; items?: SalidaBackend[]; message?: string }>(`/exits?limite=${limite}`);
-    return coerceArray(respuesta.data);
-  } catch (error) {
-    console.warn('No se pudieron cargar las salidas:', error);
-    return [];
-  }
-};
-
-export const registrarSalida = async (datos: NuevaSalidaDTO): Promise<unknown> => {
-  const respuesta = await api.post('/exits', datos);
+export const registrarSalida = async (
+  datos: NuevaSalidaDTO,
+  warehouseId?: number
+): Promise<unknown> => {
+  const respuesta = await api.post('/exits', datos, {
+    params: warehouseId ? { warehouse_id: warehouseId } : undefined,
+  });
   return respuesta.data;
 };

@@ -52,11 +52,12 @@ const parseError = (error: unknown, fallback: string): Error => {
   return new Error(fallback);
 };
 
-export const obtenerMateriales = async (): Promise<MaterialBackend[]> => {
+export const obtenerMateriales = async (q = '', limite = 50): Promise<MaterialBackend[]> => {
   try {
-    const respuesta = await api.get<MaterialBackend[]>(`${API_ROUTES.materials.buscar}?q=&limite=50`);
-    const data = coerceArray(respuesta.data) as MaterialBackend[];
-    return data;
+    const respuesta = await api.get<MaterialBackend[]>(API_ROUTES.materials.buscar, {
+      params: { q, limite },
+    });
+    return coerceArray(respuesta.data) as MaterialBackend[];
   } catch (error) {
     console.warn('Backend de materiales no disponible.', error);
     return [];

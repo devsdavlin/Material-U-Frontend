@@ -1,138 +1,128 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { useInventario } from '../../context/InventarioContext';
 import {
   obtenerEntradas,
   registrarEntrada,
   type EntradaBackend,
 } from '../../services/entradaService';
-import {
-  obtenerMiInventario,
-  type ItemInventarioBackend,
-} from '../../services/inventarioService';
 import { obtenerMateriales, type MaterialBackend } from '../../services/materialService';
-import { getLocalSaveWarning } from '../../utils/offlineMode';
+import { resolverWarehouseId } from '../../utils/sedeHelpers';
+import { getErrorMessage } from '../../utils/apiError';
+import { fechaCorta, hoyLocal } from '../../utils/fecha';
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  marginBottom: '6px',
+  fontSize: '0.85rem',
+  fontWeight: 'bold',
+  color: '#374151',
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px',
+  borderRadius: '8px',
+  border: '1px solid #d1d5db',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+const cardStyle: React.CSSProperties = {
+  backgroundColor: '#fff',
+  padding: '24px',
+  borderRadius: '14px',
+  border: '1px solid #e5e7eb',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+};
 
 export const Entradas: React.FC = () => {
   const { usuario } = useContext(AuthContext);
-  const { agregarEntrada } = useInventario();
+  const [searchParams] = useSearchParams();
+  const warehouseId = resolverWarehouseId(usuario, searchParams.get('sedeId'));
 
-  const [materialesDisponibles, setMaterialesDisponibles] = useState<ItemInventarioBackend[]>([]);
+  const [materiales, setMateriales] = useState<MaterialBackend[]>([]);
   const [entradasList, setEntradasList] = useState<EntradaBackend[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
+  const [guardando, setGuardando] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [exito, setExito] = useState<string | null>(null);
 
+  const [busquedaMaterial, setBusquedaMaterial] = useState('');
   const [codigoSeleccionado, setCodigoSeleccionado] = useState('');
   const [entryNumber, setEntryNumber] = useState('');
   const [proveedor, setProveedor] = useState('');
+  const [fecha, setFecha] = useState<string>(hoyLocal());
   const [cantidad, setCantidad] = useState<number | ''>('');
   const [valorUnitario, setValorUnitario] = useState<number | ''>('');
 
-  const cargarDatos = async () => {
+  // Historial REAL desde la base de datos
+  const cargarEntradas = useCallback(async () => {
     setCargando(true);
     try {
-      const [invRes, entRes, materialesRes] = await Promise.all([
-        obtenerMiInventario('todos'),
-        obtenerEntradas(50),
-        obtenerMateriales(),
-      ]);
-
-      const materiales = Array.isArray(invRes?.items) && invRes.items.length > 0
-        ? invRes.items
-        : (materialesRes as MaterialBackend[]).map((item) => ({
-            id_inventory: Number(item.id_material ?? 0),
-            material_id: Number(item.id_material ?? 0),
-            material_name: item.material_name,
-            internal_code: item.internal_code,
-            unit: item.unit,
-            category: item.category,
-            activo: true,
-            current_stock: 0,
-            min_stock: Number(item.min_stock ?? 0),
-            estado: 'ok' as const,
-          }));
-
-      setMaterialesDisponibles(materiales);
-      setEntradasList(Array.isArray(entRes) ? entRes : []);
+      setEntradasList(await obtenerEntradas(50, warehouseId));
+      setError(null);
     } catch (err) {
-      console.warn('Backend desconectado o error.', err);
-      setMaterialesDisponibles([]);
       setEntradasList([]);
+      setError(getErrorMessage(err, 'No se pudo cargar el historial de entradas'));
     } finally {
       setCargando(false);
     }
-  };
+  }, [warehouseId]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    void cargarDatos();
-  }, []);
+    void cargarEntradas();
+  }, [cargarEntradas]);
 
-  const materialSeleccionado = materialesDisponibles.find(
-    (m) => m.internal_code === codigoSeleccionado
-  );
+  // Catálogo de materiales (todos, no solo los que ya tienen inventario), con búsqueda
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      obtenerMateriales(busquedaMaterial, 50)
+        .then(setMateriales)
+        .catch(() => setMateriales([]));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [busquedaMaterial]);
+
+  const materialSeleccionado = materiales.find((m) => m.internal_code === codigoSeleccionado);
   const valorTotalCalculado = (Number(cantidad) || 0) * (Number(valorUnitario) || 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!materialSeleccionado || !cantidad || !valorUnitario || !entryNumber) return;
+    setError(null);
+    setExito(null);
+    if (!codigoSeleccionado || !cantidad || valorUnitario === '' || !entryNumber.trim()) return;
 
-    const datosEntrada = {
-      internal_code: materialSeleccionado.internal_code,
-      entry_number: entryNumber.trim(),
-      quantity: Number(cantidad),
-      unit_value: Number(valorUnitario),
-      provider: proveedor.trim() || undefined,
-    };
-
+    setGuardando(true);
     try {
-      await registrarEntrada(datosEntrada);
-
-      // Crear entrada visualmente
-      const nuevaEntradaVisual: EntradaBackend = {
-        id_entry: Date.now(),
-        entry_number: entryNumber.trim(),
-        warehouse_id: usuario?.warehouse_id || 1,
-        material_id: materialSeleccionado.material_id,
-        provider: proveedor.trim() || 'Sin proveedor',
-        quantity: Number(cantidad),
-        unit_value: Number(valorUnitario),
-        total_value: valorTotalCalculado,
-        entry_date: new Date().toISOString(),
-        materials: {
-          material_name: materialSeleccionado.material_name,
-          internal_code: materialSeleccionado.internal_code,
-          unit: materialSeleccionado.unit,
+      await registrarEntrada(
+        {
+          internal_code: codigoSeleccionado,
+          entry_number: entryNumber.trim(),
+          quantity: Number(cantidad),
+          unit_value: Number(valorUnitario),
+          provider: proveedor.trim() || undefined,
+          entry_date: fecha || undefined,
         },
-      };
+        warehouseId
+      );
 
-      setEntradasList((prev) => [nuevaEntradaVisual, ...prev]);
-
-      // Refrescar inventario local
-      agregarEntrada({
-        materialId: String(materialSeleccionado.material_id),
-        descripcion: materialSeleccionado.material_name,
-        proveedor: proveedor.trim() || 'Sin proveedor',
-        cantidad: Number(cantidad),
-        valorUnitario: Number(valorUnitario),
-        valorTotal: valorTotalCalculado,
-      });
-
+      // Solo se limpia el formulario si el servidor confirmó el guardado
       setCodigoSeleccionado('');
       setEntryNumber('');
       setProveedor('');
       setCantidad('');
       setValorUnitario('');
-      alert('Entrada registrada en el servidor.');
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Error al registrar entrada en backend';
-      alert(`${msg}. ${getLocalSaveWarning()}`);
+      setFecha(hoyLocal());
+      setExito('Entrada registrada en el servidor. El inventario y el dashboard ya están actualizados.');
 
-      setCodigoSeleccionado('');
-      setEntryNumber('');
-      setProveedor('');
-      setCantidad('');
-      setValorUnitario('');
+      // Se vuelve a pedir la lista real (nada se fabrica en el navegador)
+      await cargarEntradas();
+    } catch (err) {
+      // Si falla, el formulario se conserva para no perder lo digitado
+      setError(getErrorMessage(err, 'No se pudo registrar la entrada. NO se guardó en el servidor.'));
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -147,54 +137,48 @@ export const Entradas: React.FC = () => {
         </p>
       </div>
 
-      <div
-        style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '14px',
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-        }}
-      >
+      <div style={cardStyle}>
         <h2 style={{ fontSize: '1.2rem', color: '#1f2937', marginBottom: '16px' }}>
           Registrar Nuevo Ingreso de Material
         </h2>
 
+        {error && (
+          <div style={{ color: '#b91c1c', backgroundColor: '#fef2f2', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '16px' }}>
+            {error}
+          </div>
+        )}
+        {exito && (
+          <div style={{ color: '#065f46', backgroundColor: '#d1fae5', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '16px' }}>
+            {exito}
+          </div>
+        )}
+
         <form
           onSubmit={handleSubmit}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '16px',
-          }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}
         >
           <div>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '0.85rem',
-                fontWeight: 'bold',
-                color: '#374151',
-              }}
-            >
-              Material *
-            </label>
+            <label style={labelStyle}>Buscar material</label>
+            <input
+              type="text"
+              value={busquedaMaterial}
+              onChange={(e) => setBusquedaMaterial(e.target.value)}
+              placeholder="Nombre o código..."
+              style={inputStyle}
+            />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Material *</label>
             <select
               value={codigoSeleccionado}
               onChange={(e) => setCodigoSeleccionado(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                outline: 'none',
-              }}
+              style={inputStyle}
               required
             >
               <option value="">-- Seleccionar Material --</option>
-              {materialesDisponibles.map((item) => (
-                <option key={item.id_inventory || item.internal_code} value={item.internal_code}>
+              {materiales.map((item) => (
+                <option key={item.id_material} value={item.internal_code}>
                   {item.internal_code} - {item.material_name} ({item.unit})
                 </option>
               ))}
@@ -202,118 +186,66 @@ export const Entradas: React.FC = () => {
           </div>
 
           <div>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '0.85rem',
-                fontWeight: 'bold',
-                color: '#374151',
-              }}
-            >
-              N° Documento / Remisión *
-            </label>
+            <label style={labelStyle}>Fecha de la entrada *</label>
+            <input
+              type="date"
+              value={fecha}
+              max={hoyLocal()}
+              onChange={(e) => setFecha(e.target.value)}
+              style={inputStyle}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={labelStyle}>N° Documento / Remisión *</label>
             <input
               type="text"
               value={entryNumber}
               onChange={(e) => setEntryNumber(e.target.value)}
               placeholder="Ej. FAC-001"
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
+              style={inputStyle}
               required
             />
           </div>
 
           <div>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '0.85rem',
-                fontWeight: 'bold',
-                color: '#374151',
-              }}
-            >
-              Proveedor
-            </label>
+            <label style={labelStyle}>Proveedor</label>
             <input
               type="text"
               value={proveedor}
               onChange={(e) => setProveedor(e.target.value)}
               placeholder="Ej. Comercializadora Alfa"
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
+              style={inputStyle}
             />
           </div>
 
           <div>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '0.85rem',
-                fontWeight: 'bold',
-                color: '#374151',
-              }}
-            >
-              Cantidad *
+            <label style={labelStyle}>
+              Cantidad * {materialSeleccionado ? `(${materialSeleccionado.unit})` : ''}
             </label>
             <input
               type="number"
-              min="1"
+              min="0.01"
+              step="any"
               value={cantidad}
               onChange={(e) => setCantidad(e.target.value ? Number(e.target.value) : '')}
               placeholder="0"
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
+              style={inputStyle}
               required
             />
           </div>
 
           <div>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '0.85rem',
-                fontWeight: 'bold',
-                color: '#374151',
-              }}
-            >
-              Valor Unitario ($) *
-            </label>
+            <label style={labelStyle}>Valor Unitario ($) *</label>
             <input
               type="number"
               min="0"
+              step="any"
               value={valorUnitario}
               onChange={(e) => setValorUnitario(e.target.value ? Number(e.target.value) : '')}
               placeholder="0.00"
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
+              style={inputStyle}
               required
             />
           </div>
@@ -331,51 +263,37 @@ export const Entradas: React.FC = () => {
             }}
           >
             <span style={{ fontWeight: 'bold', color: '#4b5563' }}>Valor Total Calculado:</span>
-            <span style={{ fontSize: '1.4rem', fontWeight: '800', color: '#344e41' }}>
+            <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#344e41' }}>
               ${valorTotalCalculado.toLocaleString()}
             </span>
           </div>
 
           <button
             type="submit"
+            disabled={guardando}
             style={{
               gridColumn: '1 / -1',
-              backgroundColor: '#344e41',
+              backgroundColor: guardando ? '#9ca3af' : '#344e41',
               color: '#fff',
               padding: '12px',
               border: 'none',
               borderRadius: '8px',
               fontWeight: 'bold',
               fontSize: '1rem',
-              cursor: 'pointer',
+              cursor: guardando ? 'not-allowed' : 'pointer',
             }}
           >
-            Guardar Entrada
+            {guardando ? 'Guardando...' : 'Guardar Entrada'}
           </button>
         </form>
       </div>
 
-      <div
-        style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '14px',
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-        }}
-      >
+      <div style={cardStyle}>
         <h2 style={{ fontSize: '1.2rem', color: '#1f2937', marginBottom: '16px' }}>
           Historial Reciente de Ingresos
         </h2>
         <div style={{ overflowX: 'auto' }}>
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              textAlign: 'left',
-              fontSize: '0.9rem',
-            }}
-          >
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
             <thead>
               <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
                 <th style={{ padding: '12px' }}>N° Entrada</th>
@@ -403,17 +321,13 @@ export const Entradas: React.FC = () => {
               ) : (
                 entradasList.map((item) => (
                   <tr key={item.id_entry} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    <td style={{ padding: '12px', fontWeight: 'bold', color: '#344e41' }}>
-                      {item.entry_number}
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      {item.entry_date ? item.entry_date.split('T')[0] : 'Hoy'}
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      {item.materials?.material_name || item.internal_code || 'Material'}
-                    </td>
+                    <td style={{ padding: '12px', fontWeight: 'bold', color: '#344e41' }}>{item.entry_number}</td>
+                    <td style={{ padding: '12px' }}>{fechaCorta(item.entry_date)}</td>
+                    <td style={{ padding: '12px' }}>{item.materials?.material_name || 'Material'}</td>
                     <td style={{ padding: '12px' }}>{item.provider || 'Sin proveedor'}</td>
-                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{item.quantity}</td>
+                    <td style={{ padding: '12px', fontWeight: 'bold' }}>
+                      {item.quantity} {item.materials?.unit ?? ''}
+                    </td>
                     <td style={{ padding: '12px' }}>${Number(item.unit_value).toLocaleString()}</td>
                     <td style={{ padding: '12px', fontWeight: 'bold', color: '#10b981' }}>
                       ${Number(item.total_value).toLocaleString()}

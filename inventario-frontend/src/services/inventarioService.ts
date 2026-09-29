@@ -1,15 +1,5 @@
 import { api } from './api';
 
-const coerceArray = (payload: unknown): unknown[] => {
-  if (Array.isArray(payload)) return payload;
-  if (payload && typeof payload === 'object') {
-    const data = payload as Record<string, unknown>;
-    if (Array.isArray(data.data)) return data.data;
-    if (Array.isArray(data.items)) return data.items;
-  }
-  return [];
-};
-
 export type EstadoInventario = 'todos' | 'con_stock' | 'bajo_minimo' | 'agotado';
 
 export interface ItemInventarioBackend {
@@ -38,31 +28,26 @@ export interface RespuestaInventario {
   resumen: ResumenInventario;
 }
 
+const RESUMEN_VACIO: ResumenInventario = { total: 0, con_stock: 0, agotados: 0, bajo_minimo: 0 };
+
+// El backend responde: { ok, items, resumen }. Los errores se propagan (no se inventan datos).
 export const obtenerMiInventario = async (
   filtroEstado: EstadoInventario = 'todos',
-  busqueda = ''
+  busqueda = '',
+  warehouseId?: number
 ): Promise<RespuestaInventario> => {
-  const query = new URLSearchParams();
-  if (filtroEstado && filtroEstado !== 'todos') {
-    query.set('estado', filtroEstado);
-  }
-  if (busqueda.trim()) {
-    query.set('q', busqueda.trim());
-  }
-  query.set('limite', '100');
-
-  const respuesta = await api.get<RespuestaInventario | { items?: unknown[]; resumen?: Partial<ResumenInventario>; ok?: boolean }>(`/inventory?${query.toString()}`);
-  const data = respuesta.data ?? { ok: true, items: [], resumen: {} };
-  const itemsArray = coerceArray(data.items ?? data) as ItemInventarioBackend[];
-
+  const respuesta = await api.get<Partial<RespuestaInventario>>('/inventory', {
+    params: {
+      limite: 200,
+      ...(filtroEstado !== 'todos' ? { estado: filtroEstado } : {}),
+      ...(busqueda.trim() ? { q: busqueda.trim() } : {}),
+      ...(warehouseId ? { warehouse_id: warehouseId } : {}),
+    },
+  });
+  const data = respuesta.data ?? {};
   return {
     ok: Boolean(data.ok ?? true),
-    items: itemsArray,
-    resumen: {
-      total: Number(data.resumen?.total ?? itemsArray.length),
-      con_stock: Number(data.resumen?.con_stock ?? 0),
-      agotados: Number(data.resumen?.agotados ?? 0),
-      bajo_minimo: Number(data.resumen?.bajo_minimo ?? 0),
-    },
+    items: Array.isArray(data.items) ? data.items : [],
+    resumen: { ...RESUMEN_VACIO, ...(data.resumen ?? {}) },
   };
 };

@@ -84,7 +84,7 @@ const Usuarios = () => {
         <p style={{ color: '#6b7280' }}>Cargando usuarios del backend...</p>
       ) : usuariosActivos.length === 0 ? (
         <div style={{ backgroundColor: '#fff', borderRadius: '18px', padding: '24px', color: '#6b7280' }}>
-          No hay usuarios disponibles desde el backend real.
+          No hay usuarios en este momento.
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
