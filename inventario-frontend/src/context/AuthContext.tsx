@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (token && rawUser) {
         const user = mapUsuarioDesdeBackend(rawUser as Record<string, unknown>, email);
 
-        if (user.sedeId) {
+        if (user.rol !== 'Administrador' && user.warehouse_id) {
           guardarSedeSeleccionada({
             id: String(user.sedeId),
             nombre: user.nombre ?? user.name ?? 'Sede',

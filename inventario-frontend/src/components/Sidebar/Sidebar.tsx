@@ -142,7 +142,10 @@ export const Sidebar: React.FC = () => {
 
       {/* 3. Menú de Navegación con Iconitos */}
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* 1. Lo que ven TODOS (Admin y Almacenista) */}
+        {/* 2. Lo que ve SOLO EL ALMACENISTA (Su módulo operativo completo) */}
+        {usuario?.rol !== 'Administrador' && usuario?.rol !== 'ADMINISTRADOR' && (
+          <>
+        
         <NavLink to="/dashboard" style={linkStyle}>
           {({ isActive }) => (
             <>
@@ -164,9 +167,6 @@ export const Sidebar: React.FC = () => {
           )}
         </NavLink>
 
-        {/* 2. Lo que ve SOLO EL ALMACENISTA (Su módulo operativo completo) */}
-        {usuario?.rol !== 'Administrador' && usuario?.rol !== 'ADMINISTRADOR' && (
-          <>
             <NavLink to="/entradas" style={linkStyle}>
               {({ isActive }) => (
                 <>

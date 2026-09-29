@@ -8,5 +8,6 @@ export interface Usuario {
   rol: RolUsuario;
   warehouse_id?: number | null;
   sedeId?: string;
+  sedeNombre?: string;
   password?: string;
 }

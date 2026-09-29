@@ -1,6 +1,7 @@
 import { api } from './api';
 import { API_ROUTES } from '../utils/apiRoutes';
 import type { Sede as SedeTipo } from '../types/Sede';
+import { getErrorMessage } from '../utils/apiError';
 
 export type Sede = SedeTipo & {
   id: string;
@@ -17,6 +18,7 @@ const coerceArray = (payload: unknown): unknown[] => {
     const data = payload as Record<string, unknown>;
     if (Array.isArray(data.data)) return data.data;
     if (Array.isArray(data.warehouses)) return data.warehouses;
+    if (Array.isArray(data.sedes)) return data.sedes;
     if (Array.isArray(data.items)) return data.items;
   }
   return [];
@@ -57,14 +59,15 @@ export const obtenerSedesActivas = async (): Promise<Sede[]> => {
   }
 };
 
-export const crearSede = async (nombre: string): Promise<Sede> => {
+export const crearSede = async (nombre: string, direccion: string): Promise<Sede> => {
   try {
     const respuesta = await api.post(API_ROUTES.warehouses, {
       warehouse_name: nombre.trim(),
+      address: direccion.trim(),
     });
-    return normalizarSedeBackend(respuesta.data);
+    return normalizarSedeBackend(respuesta.data?.sede ?? respuesta.data);
   } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'No se pudo crear la sede');
+    throw new Error(getErrorMessage(error, 'No se pudo crear la sede'));
   }
 };
 

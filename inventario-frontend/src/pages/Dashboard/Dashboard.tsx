@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import {
   guardarSedeSeleccionada,
@@ -94,6 +94,8 @@ export const Dashboard: React.FC = () => {
   const sedeIdURL = searchParams.get('sedeId');
   const nombreSedeURL = searchParams.get('nombreSede');
   const warehouseId = resolverWarehouseId(usuario, sedeIdURL);
+  // El admin solo entra al dashboard desde una sede (tarjeta en /sedes).
+  const adminSinSede = esAdmin(usuario) && !warehouseId;
 
   const [dash, setDash] = useState<DashboardBackend | null>(null);
   const [dinero, setDinero] = useState<DineroBackend | null>(null);
@@ -111,6 +113,7 @@ export const Dashboard: React.FC = () => {
 
   // TODO viene del backend: /dashboard/mi-sede y /money/mi-sede
   const cargar = useCallback(async () => {
+    if (adminSinSede) return;
     setCargando(true);
     try {
       const [d, m] = await Promise.all([obtenerDashboard(warehouseId), obtenerDinero(warehouseId)]);
@@ -124,7 +127,7 @@ export const Dashboard: React.FC = () => {
     } finally {
       setCargando(false);
     }
-  }, [warehouseId]);
+  }, [warehouseId, adminSinSede]);
 
   useEffect(() => {
     void cargar();
@@ -137,6 +140,8 @@ export const Dashboard: React.FC = () => {
   const movimientos = dash?.ultimosMovimientos ?? [];
   const criticos = dash?.criticos ?? [];
   const admin = esAdmin(usuario);
+
+  if (adminSinSede) return <Navigate to="/sedes" replace />;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', backgroundColor: '#f8faf8', minHeight: '100vh', padding: '10px 0', animation: 'fadeIn 0.5s ease' }}>
@@ -261,7 +266,11 @@ export const Dashboard: React.FC = () => {
                 <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 600 }}>TU SEDE ACTUAL</span>
                 <h3 style={{ margin: '6px 0', fontSize: '1.4rem', color: '#123b2b', fontWeight: 800 }}>{sedeNombre}</h3>
                 <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: 0 }}>
-                  Encargado: <strong>{usuario?.nombre ?? usuario?.name ?? 'Operador'}</strong>
+                  {admin ? (
+                    <>Vista de <strong>administrador</strong></>
+                  ) : (
+                    <>Encargado: <strong>{usuario?.nombre ?? usuario?.name ?? 'Operador'}</strong></>
+                  )}
                 </p>
               </div>
               <button
