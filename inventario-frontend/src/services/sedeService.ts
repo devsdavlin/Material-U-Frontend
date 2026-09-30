@@ -59,11 +59,10 @@ export const obtenerSedesActivas = async (): Promise<Sede[]> => {
   }
 };
 
-export const crearSede = async (nombre: string, direccion: string): Promise<Sede> => {
+export const crearSede = async (nombre: string): Promise<Sede> => {
   try {
     const respuesta = await api.post(API_ROUTES.warehouses, {
       warehouse_name: nombre.trim(),
-      address: direccion.trim(),
     });
     return normalizarSedeBackend(respuesta.data?.sede ?? respuesta.data);
   } catch (error) {

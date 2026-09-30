@@ -9,7 +9,6 @@ export const Sedes: React.FC = () => {
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [cargando, setCargando] = useState(true);
   const [nombreSede, setNombreSede] = useState('');
-  const [direccion, setDireccion] = useState('');
   const [enviando, setEnviando] = useState(false);
 
   const cargar = async () => {
@@ -25,21 +24,20 @@ export const Sedes: React.FC = () => {
   }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!nombreSede.trim() || !direccion.trim()) return;
+  event.preventDefault();
+  if (!nombreSede.trim()) return;
 
-    setEnviando(true);
-    try {
-      await crearSede(nombreSede, direccion);
-      setNombreSede('');
-      setDireccion('');
-      await cargar();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'No se pudo crear la sede');
-    } finally {
-      setEnviando(false);
-    }
-  };
+  setEnviando(true);
+  try {
+    await crearSede(nombreSede);
+    setNombreSede('');
+    await cargar();
+  } catch (error) {
+    alert(error instanceof Error ? error.message : 'No se pudo crear la sede');
+  } finally {
+    setEnviando(false);
+  }
+};
 
   const abrirDashboard = (sede: Sede) => {
     guardarSedeSeleccionada(sede);
@@ -54,7 +52,6 @@ export const Sedes: React.FC = () => {
         <h3 style={{ margin: '0 0 16px 0', color: '#0f291e' }}>Crear sede</h3>
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <input value={nombreSede} onChange={(e) => setNombreSede(e.target.value)} placeholder="Nombre de la sede" style={input} required minLength={3} />
-          <input value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Dirección de la sede" style={input} required minLength={5} />
           <button type="submit" disabled={enviando} style={{ backgroundColor: '#123b2b', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px 18px', fontWeight: 700, cursor: 'pointer' }}>
             {enviando ? 'Guardando...' : 'Crear sede'}
           </button>
