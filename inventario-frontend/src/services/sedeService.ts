@@ -40,8 +40,6 @@ export const normalizarSedeId = (valor: string | number | null | undefined): str
   const raw = String(valor ?? '').trim().toLowerCase();
 
   if (!raw) return 's1';
-  if (['1', 's1', 'central', 'sede central', 'centro'].includes(raw)) return 's1';
-  if (['2', 's2', 'norte', 'sede norte'].includes(raw)) return 's2';
   if (['3', 's3', 'la vega', 'vega', 'sede la vega'].includes(raw)) return 's3';
   if (['4', 's4', 'prueba', 'sede prueba'].includes(raw)) return 's4';
 
@@ -54,7 +52,7 @@ export const obtenerSedesActivas = async (): Promise<Sede[]> => {
     const data = coerceArray(respuesta.data) as any[];
     return data.map(normalizarSedeBackend).filter((sede) => sede.id && sede.id !== '0');
   } catch (error) {
-    console.warn('No se pudieron cargar las sedes desde el backend.', error);
+    console.warn('No se pudieron cargar las sedes.', error);
     return [];
   }
 };
