@@ -35,6 +35,13 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      localStorage.removeItem(STORAGE_KEYS.token);
+      localStorage.removeItem('token');
+      localStorage.removeItem(STORAGE_KEYS.user);
+      if (window.location.pathname !== '/login') window.location.href = '/login';
+      return Promise.reject(error);
+    }
     setOfflineMode(true);
     return Promise.reject(error);
   }
