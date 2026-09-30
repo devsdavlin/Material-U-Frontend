@@ -6,6 +6,60 @@ import type { Usuario } from '../../types/Usuario';
 const campo: React.CSSProperties = { padding: '10px 12px', borderRadius: '10px', border: '1px solid #d1d5db' };
 const btn: React.CSSProperties = { border: 'none', borderRadius: '10px', padding: '8px 14px', fontWeight: 700, cursor: 'pointer' };
 
+
+const EyeIcon = ({ open }: { open: boolean }) => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {open ? (
+      <>
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    ) : (
+      <>
+        <path d="M17.94 17.94A10.9 10.9 0 0 1 12 19c-6.5 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" />
+        <path d="M9.9 4.24A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" />
+        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+        <path d="M2 2l20 20" />
+      </>
+    )}
+  </svg>
+);
+
+type PasswordInputProps = {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  required?: boolean;
+  minLength?: number;
+};
+
+const PasswordInput: React.FC<PasswordInputProps> = ({ value, onChange, placeholder, required, minLength }) => {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div style={{ position: 'relative', display: 'flex' }}>
+      <input
+        type={visible ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+        minLength={minLength}
+        autoComplete="new-password"
+        style={{ ...campo, width: '100%', boxSizing: 'border-box', paddingRight: '42px' }}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        title={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: '4px', cursor: 'pointer', color: '#6b7280', display: 'flex', alignItems: 'center' }}
+      >
+        <EyeIcon open={visible} />
+      </button>
+    </div>
+  );
+};
+
 const esAdminRol = (rol: string) => rol === 'Administrador' || rol === 'ADMINISTRADOR';
 
 export const Usuarios: React.FC = () => {
@@ -123,7 +177,7 @@ export const Usuarios: React.FC = () => {
         <form onSubmit={handleCrear} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="Nombre de usuario" style={campo} required />
           <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Correo" style={campo} required />
-          <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Contraseña (mín. 8)" style={campo} required minLength={8} />
+          <PasswordInput value={form.password} onChange={(v) => setForm({ ...form, password: v })} placeholder="Contraseña (mín. 8)" required minLength={8} />
           {selectSedes(form.warehouse_id, (v) => setForm({ ...form, warehouse_id: v }))}
           <button type="submit" disabled={enviando} style={{ ...btn, backgroundColor: '#123b2b', color: '#fff', padding: '12px 18px' }}>
             {enviando ? 'Guardando...' : 'Crear usuario'}
@@ -178,7 +232,7 @@ export const Usuarios: React.FC = () => {
             <h3 style={{ margin: 0, color: '#0f291e' }}>Editar usuario</h3>
             <input value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} placeholder="Nombre de usuario" style={campo} required />
             <input type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} placeholder="Correo" style={campo} required />
-            <input type="password" value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} placeholder="Nueva contraseña (vacío = no cambiar)" style={campo} minLength={8} />
+            <PasswordInput value={edit.password} onChange={(v) => setEdit({ ...edit, password: v })} placeholder="Nueva contraseña (vacío = no cambiar)" minLength={8} />
             {selectSedes(edit.warehouse_id, (v) => setEdit({ ...edit, warehouse_id: v }))}
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => setEditando(null)} style={{ ...btn, backgroundColor: '#f3f4f6', color: '#374151' }}>Cancelar</button>

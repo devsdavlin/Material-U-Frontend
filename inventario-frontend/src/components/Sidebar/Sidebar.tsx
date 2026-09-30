@@ -69,10 +69,26 @@ const LogoutIcon = ({ size = 22, color = '#ef4444' }: IconProps) => (
   </svg>
 );
 
+const AvatarIcon = ({ size = 44 }: { size?: number }) => (
+  <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden="true">
+    <defs>
+      <clipPath id="avatar-clip">
+        <circle cx="20" cy="20" r="20" />
+      </clipPath>
+    </defs>
+    <circle cx="20" cy="20" r="20" fill="#e8ece8" />
+    <g clipPath="url(#avatar-clip)" fill="#838a96">
+      <circle cx="20" cy="15" r="7" />
+      <ellipse cx="20" cy="38" rx="14" ry="11" />
+    </g>
+  </svg>
+);
+
 export const Sidebar: React.FC = () => {
   const { usuario, logout } = useContext(AuthContext);
   // Estado que controla si el mouse está encima de la barra
   const [isHovered, setIsHovered] = useState(false);
+  const esAdminRol = usuario?.rol === 'Administrador' || usuario?.rol === 'ADMINISTRADOR';
 
   const linkStyle = ({ isActive }: { isActive: boolean }) => ({
     display: 'flex',
@@ -116,28 +132,49 @@ export const Sidebar: React.FC = () => {
         boxSizing: 'border-box',
       }}
     >
-      {/* 1. Logo y Título */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '30px', padding: '0 6px', overflow: 'hidden' }}>
-        <div style={{ fontSize: '1.8rem', flexShrink: 0 }}></div>
-        <h2 style={{ fontSize: '1.3rem', margin: 0, color: '#0f291e', fontWeight: '800', opacity: isHovered ? 1 : 0, transition: 'opacity 0.2s', whiteSpace: 'nowrap' }}>
-          Inventario
-        </h2>
-      </div>
+      {/* 1. Cabecera: avatar cuando la barra está contraída, tarjeta del usuario cuando se expande */}
+      <div style={{ position: 'relative', height: '60px', marginBottom: '20px', flexShrink: 0 }}>
+        {/* Avatar (solo visible contraída) */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: isHovered ? 0 : 1,
+            transition: 'opacity 0.25s ease',
+            pointerEvents: 'none',
+          }}
+        >
+          <AvatarIcon size={44} />
+        </div>
 
-      {/* 2. Tarjeta del Usuario (Se oculta suavemente) */}
-      <div style={{
-        padding: isHovered ? '12px' : '0',
-        backgroundColor: '#f8faf8',
-        borderRadius: '12px',
-        marginBottom: '20px',
-        border: isHovered ? '1px solid #e8ece8' : 'none',
-        overflow: 'hidden',
-        height: isHovered ? '60px' : '0',
-        opacity: isHovered ? 1 : 0,
-        transition: 'all 0.3s ease',
-      }}>
-        <p style={{ margin: 0, fontWeight: 'bold', fontSize: '0.85rem', color: '#123b2b', whiteSpace: 'nowrap' }}>{usuario?.nombre}</p>
-        <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>Rol: {usuario?.rol}</p>
+        {/* Tarjeta del usuario (solo visible expandida) */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            boxSizing: 'border-box',
+            padding: '0 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            backgroundColor: '#f8faf8',
+            borderRadius: '12px',
+            border: '1px solid #e8ece8',
+            overflow: 'hidden',
+            opacity: isHovered ? 1 : 0,
+            transition: 'opacity 0.25s ease',
+          }}
+        >
+          <p style={{ margin: 0, fontWeight: 'bold', fontSize: '0.85rem', color: '#123b2b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {usuario?.nombre || usuario?.name}
+          </p>
+          <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+            Rol: {esAdminRol ? 'Administrador(a)' : usuario?.rol}
+          </p>
+        </div>
       </div>
 
       {/* 3. Menú de Navegación con Iconitos */}

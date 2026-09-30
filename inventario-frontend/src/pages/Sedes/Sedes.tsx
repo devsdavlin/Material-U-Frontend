@@ -46,7 +46,7 @@ export const Sedes: React.FC = () => {
 
   return (
     <div style={{ padding: '32px 24px', minHeight: '100vh', backgroundColor: '#f6f7f5' }}>
-      <h1 style={{ margin: '0 0 24px 0', fontSize: '2.6rem', fontWeight: 800, color: '#0f291e' }}>Gestión de Sedes</h1>
+      <h1 style={{ margin: '0 0 24px 0', fontSize: '2.6rem', fontWeight: 800, color: '#0f291e' }}>Sedes</h1>
 
       <div style={{ backgroundColor: '#fff', borderRadius: '18px', padding: '20px', marginBottom: '24px', border: '1px solid #e7ece8' }}>
         <h3 style={{ margin: '0 0 16px 0', color: '#0f291e' }}>Crear sede</h3>
