@@ -33,7 +33,7 @@ export const Usuarios: React.FC = () => {
     void cargar();
   }, []);
 
-  const almacenistas = usuarios.filter((u) => !esAdminRol(u.rol));
+  const almacenistas = usuarios.filter((u) => !esAdminRol(u.rol) && u.activo !== false);
   const nombreSede = (id?: number | null) => sedes.find((s) => s.id === String(id))?.nombre ?? 'Sin sede';
 
   const handleCrear = async (e: React.FormEvent) => {
@@ -73,7 +73,7 @@ export const Usuarios: React.FC = () => {
       await actualizarUsuario(editando.id_user, {
         username: edit.username.trim(),
         email: edit.email.trim(),
-        warehouse_id: edit.warehouse_id ? Number(edit.warehouse_id) : null,
+        ...(edit.warehouse_id ? { warehouse_id: Number(edit.warehouse_id) } : {}),
         ...(edit.password ? { password: edit.password } : {}),
       });
       setEditando(null);

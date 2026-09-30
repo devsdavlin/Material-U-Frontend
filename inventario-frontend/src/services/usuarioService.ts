@@ -16,7 +16,8 @@ const coerceArray = (payload: unknown): unknown[] => {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const normalizarUsuarioBackend = (raw: any): Usuario => {
-  const wid = raw?.warehouse_id ?? raw?.warehouseId ?? null;
+  // El backend lista la sede dentro de `warehouse` ({ id_warehouse, warehouse_name })
+  const wid = raw?.warehouse_id ?? raw?.warehouse?.id_warehouse ?? raw?.warehouseId ?? null;
   const warehouseId = wid === null || wid === undefined ? null : Number(wid);
 
   return {
@@ -28,6 +29,7 @@ const normalizarUsuarioBackend = (raw: any): Usuario => {
     warehouse_id: warehouseId,
     sedeId: warehouseId === null ? undefined : String(warehouseId),
     sedeNombre: raw?.warehouse?.warehouse_name ? String(raw.warehouse.warehouse_name) : undefined,
+    activo: raw?.activo !== false,
   };
 };
 
@@ -70,7 +72,7 @@ export const actualizarUsuario = async (
     username?: string;
     email?: string;
     password?: string;
-    warehouse_id?: number | null;
+    warehouse_id?: number;
   }
 ): Promise<Usuario> => {
   try {
@@ -83,7 +85,8 @@ export const actualizarUsuario = async (
 
 export const eliminarUsuario = async (id: string): Promise<void> => {
   try {
-    await api.delete(`${API_ROUTES.users}/${id}`);
+    // El backend "elimina" desactivando la cuenta: pierde el acceso y se conserva el historial
+    await api.patch(`${API_ROUTES.users}/${id}/desactivar`);
   } catch (error) {
     throw new Error(getErrorMessage(error, 'No se pudo eliminar el usuario'));
   }

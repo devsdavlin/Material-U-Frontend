@@ -10,4 +10,5 @@ export interface Usuario {
   sedeId?: string;
   sedeNombre?: string;
   password?: string;
+  activo?: boolean;
 }
