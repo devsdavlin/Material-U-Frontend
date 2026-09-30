@@ -74,8 +74,7 @@ export const Sedes: React.FC = () => {
               onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 16px 28px rgba(15, 23, 42, 0.1)'; }}
               onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
             >
-              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.5rem', color: '#0f291e' }}>{sede.nombre}</h3>
-              <p style={{ margin: 0, color: '#6b7280', lineHeight: 1.5, minHeight: '36px' }}>{sede.ubicacion || 'Sin dirección'}</p>
+              <h3 style={{ margin: 0, fontSize: '1.5rem', color: '#0f291e' }}>{sede.nombre}</h3>
               <span style={{ marginTop: '18px', backgroundColor: '#123b2b', color: '#fff', borderRadius: '12px', padding: '10px 12px', fontWeight: 700, textAlign: 'center' }}>
                 Ver dashboard →
               </span>

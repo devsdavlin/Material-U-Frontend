@@ -92,4 +92,12 @@ export const eliminarUsuario = async (id: string): Promise<void> => {
   }
 };
 
-export default { obtenerUsuariosActivos, crearUsuario, actualizarUsuario, eliminarUsuario };
+export const reactivarUsuario = async (id: string): Promise<void> => {
+  try {
+    await api.patch(`${API_ROUTES.users}/${id}/reactivar`);
+  } catch (error) {
+    throw new Error(getErrorMessage(error, 'No se pudo reactivar el usuario'));
+  }
+};
+
+export default { obtenerUsuariosActivos, crearUsuario, actualizarUsuario, eliminarUsuario, reactivarUsuario };

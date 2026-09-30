@@ -8,6 +8,7 @@ export type Sede = SedeTipo & {
   nombre: string;
   ubicacion?: string;
   descripcion?: string;
+  activo?: boolean;
 };
 
 const STORAGE_KEY_SEDE_SELECCIONADA = 'inventario_sede_seleccionada';
@@ -33,6 +34,7 @@ const normalizarSedeBackend = (raw: any): Sede => {
     id: id || '0',
     nombre: String(raw?.nombre ?? raw?.name ?? raw?.warehouse_name ?? raw?.nombre_sede ?? 'Sede'),
     ubicacion: String(raw?.ubicacion ?? raw?.address ?? raw?.direccion ?? raw?.location ?? ''),
+    activo: raw?.activo !== false,
   };
 };
 
@@ -50,7 +52,7 @@ export const obtenerSedesActivas = async (): Promise<Sede[]> => {
   try {
     const respuesta = await api.get(API_ROUTES.warehouses);
     const data = coerceArray(respuesta.data) as any[];
-    return data.map(normalizarSedeBackend).filter((sede) => sede.id && sede.id !== '0');
+    return data.map(normalizarSedeBackend).filter((sede) => sede.id && sede.id !== '0' && sede.activo !== false);
   } catch (error) {
     console.warn('No se pudieron cargar las sedes.', error);
     return [];

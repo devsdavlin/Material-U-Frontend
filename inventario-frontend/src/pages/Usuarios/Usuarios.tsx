@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { obtenerSedesActivas, type Sede } from '../../services/sedeService';
-import { actualizarUsuario, crearUsuario, eliminarUsuario, obtenerUsuariosActivos } from '../../services/usuarioService';
+import { actualizarUsuario, crearUsuario, eliminarUsuario, obtenerUsuariosActivos, reactivarUsuario } from '../../services/usuarioService';
 import type { Usuario } from '../../types/Usuario';
 
 const campo: React.CSSProperties = { padding: '10px 12px', borderRadius: '10px', border: '1px solid #d1d5db' };
@@ -34,6 +34,7 @@ export const Usuarios: React.FC = () => {
   }, []);
 
   const almacenistas = usuarios.filter((u) => !esAdminRol(u.rol) && u.activo !== false);
+  const desactivados = usuarios.filter((u) => !esAdminRol(u.rol) && u.activo === false);
   const nombreSede = (id?: number | null) => sedes.find((s) => s.id === String(id))?.nombre ?? 'Sin sede';
 
   const handleCrear = async (e: React.FormEvent) => {
@@ -95,6 +96,15 @@ export const Usuarios: React.FC = () => {
     }
   };
 
+  const handleReactivar = async (u: Usuario) => {
+    try {
+      await reactivarUsuario(u.id_user);
+      await cargar();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'No se pudo reactivar el usuario');
+    }
+  };
+
   const selectSedes = (value: string, onChange: (v: string) => void) => (
     <select value={value} onChange={(e) => onChange(e.target.value)} style={campo} required>
       <option value="">Sede</option>
@@ -141,6 +151,24 @@ export const Usuarios: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {!cargando && desactivados.length > 0 && (
+        <div style={{ marginTop: '32px' }}>
+          <h2 style={{ margin: '0 0 16px 0', fontSize: '1.4rem', color: '#0f291e' }}>Usuarios desactivados</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
+            {desactivados.map((u) => (
+              <div key={u.id_user} style={{ backgroundColor: '#fff', borderRadius: '22px', padding: '22px 18px', border: '1px solid #e7ece8', opacity: 0.8 }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.3rem', color: '#6b7280' }}>{u.name || u.nombre || 'Usuario'}</h3>
+                <p style={{ margin: 0, color: '#6b7280' }}>{u.email}</p>
+                <p style={{ margin: '8px 0 0 0', color: '#6b7280' }}>Sede: <strong>{u.sedeNombre ?? nombreSede(u.warehouse_id)}</strong></p>
+                <div style={{ marginTop: '16px' }}>
+                  <button onClick={() => void handleReactivar(u)} style={{ ...btn, backgroundColor: '#edf6f2', color: '#123b2b' }}>Reactivar</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
