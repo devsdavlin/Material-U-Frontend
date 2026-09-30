@@ -6,6 +6,8 @@ import { MainLayout } from '../layouts/MainLayout/MainLayout';
 
 import { Login } from '../pages/Login/Login';
 import { Dashboard } from '../pages/Dashboard/Dashboard';
+import { DashboardAdmin } from '../pages/DashboardAdmin/DashboardAdmin';
+import { esAdmin } from '../utils/sedeHelpers';
 import { Inventario } from '../pages/Inventario/Inventario';
 import { Entradas } from '../pages/Entradas/Entradas';
 import { Salidas } from '../pages/Salidas/Salidas';
@@ -26,6 +28,11 @@ const RutaInicial = () => {
   return <Navigate to="/dashboard" replace />;
 };
 
+const DashboardPorRol = () => {
+  const { usuario } = useContext(AuthContext);
+  return esAdmin(usuario) ? <DashboardAdmin /> : <Dashboard />;
+};
+
 export const AppRoutes = () => {
   return (
     <Routes>
@@ -33,7 +40,7 @@ export const AppRoutes = () => {
 
       <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
         <Route path="/" element={<RutaInicial />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<DashboardPorRol />} />
         <Route path="/inventario" element={<Inventario />} />
         <Route path="/entradas" element={<Entradas />} />
         <Route path="/salidas" element={<Salidas />} />
