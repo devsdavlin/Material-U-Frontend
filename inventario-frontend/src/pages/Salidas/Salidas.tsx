@@ -13,6 +13,7 @@ import {
 import { resolverWarehouseId } from '../../utils/sedeHelpers';
 import { getErrorMessage } from '../../utils/apiError';
 import { fechaCorta, hoyLocal } from '../../utils/fecha';
+import { MAX_NUMERO_DOCUMENTO, numeroDeLinea, siguienteIdLinea } from '../../utils/lote';
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -39,6 +40,17 @@ const cardStyle: React.CSSProperties = {
   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
 };
 
+interface LineaSalida {
+  id: number;
+  codigo: string;
+  cantidad: number | '';
+  valorUnitario: number | '';
+  // Número ya asignado a una línea que falló, para reintentar sin duplicar las que sí se guardaron
+  numeroFijo?: string;
+}
+
+const nuevaLinea = (): LineaSalida => ({ id: siguienteIdLinea(), codigo: '', cantidad: '', valorUnitario: '' });
+
 export const Salidas: React.FC = () => {
   const { usuario } = useContext(AuthContext);
   const [searchParams] = useSearchParams();
@@ -52,13 +64,11 @@ export const Salidas: React.FC = () => {
   const [exito, setExito] = useState<string | null>(null);
 
   const [busquedaMaterial, setBusquedaMaterial] = useState('');
-  const [codigoSeleccionado, setCodigoSeleccionado] = useState('');
+  const [catalogo, setCatalogo] = useState<Record<string, ItemInventarioBackend>>({});
+  const [lineas, setLineas] = useState<LineaSalida[]>(() => [nuevaLinea()]);
   const [exitNumber, setExitNumber] = useState('');
   const [centroCosto, setCentroCosto] = useState('');
   const [fecha, setFecha] = useState<string>(hoyLocal());
-  const [cantidad, setCantidad] = useState<number | ''>('');
-  const [unitValue, setUnitValue] = useState<number | ''>('');
-  const [errorStock, setErrorStock] = useState<string | null>(null);
 
   // Solo se puede sacar lo que existe en el inventario real de la sede
   const cargarInventario = useCallback(
@@ -66,6 +76,8 @@ export const Salidas: React.FC = () => {
       try {
         const res = await obtenerMiInventario('todos', q, warehouseId);
         setMaterialesDisponibles(res.items);
+        // Se recuerda el stock más reciente de cada material visto (las líneas lo consultan aquí)
+        setCatalogo((prev) => ({ ...prev, ...Object.fromEntries(res.items.map((m) => [m.internal_code, m])) }));
       } catch (err) {
         setMaterialesDisponibles([]);
         setError(getErrorMessage(err, 'No se pudo cargar el inventario'));
@@ -95,67 +107,122 @@ export const Salidas: React.FC = () => {
     return () => clearTimeout(timer);
   }, [busquedaMaterial, cargarInventario]);
 
-  const materialSeleccionado = materialesDisponibles.find(
-    (m) => m.internal_code === codigoSeleccionado
+  const codigosUsados = new Set(lineas.map((l) => l.codigo).filter(Boolean));
+  const valorTotalCalculado = lineas.reduce(
+    (acc, l) => acc + (Number(l.cantidad) || 0) * (Number(l.valorUnitario) || 0),
+    0
   );
-  const stockDisponible = materialSeleccionado ? materialSeleccionado.current_stock : 0;
 
-  const validarStock = (val: number | '', material = materialSeleccionado) => {
-    if (material && typeof val === 'number' && val > material.current_stock) {
-      setErrorStock(
-        `¡Alerta! La cantidad solicitada (${val}) supera el stock disponible (${material.current_stock} ${material.unit}).`
-      );
-    } else {
-      setErrorStock(null);
+  // Opciones de una línea: el resultado de la búsqueda + el material que ya tenía elegido
+  const opcionesDeLinea = (linea: LineaSalida): ItemInventarioBackend[] => {
+    const elegido = linea.codigo ? catalogo[linea.codigo] : undefined;
+    return elegido && !materialesDisponibles.some((m) => m.internal_code === elegido.internal_code)
+      ? [elegido, ...materialesDisponibles]
+      : materialesDisponibles;
+  };
+
+  // Mensaje de stock de una línea (null si está bien)
+  const errorStockDe = (linea: LineaSalida): string | null => {
+    const m = linea.codigo ? catalogo[linea.codigo] : undefined;
+    if (m && typeof linea.cantidad === 'number' && linea.cantidad > m.current_stock) {
+      return `La cantidad (${linea.cantidad}) supera el stock disponible (${m.current_stock} ${m.unit}).`;
     }
+    return null;
+  };
+  const hayErrorStock = lineas.some((l) => errorStockDe(l) !== null);
+
+  const actualizarLinea = (id: number, cambios: Partial<LineaSalida>) =>
+    setLineas((prev) => prev.map((l) => (l.id === id ? { ...l, ...cambios } : l)));
+  const agregarLinea = () => setLineas((prev) => [...prev, nuevaLinea()]);
+  const quitarLinea = (id: number) =>
+    setLineas((prev) => (prev.length > 1 ? prev.filter((l) => l.id !== id) : prev));
+
+  const handleNumeroChange = (valor: string) => {
+    setExitNumber(valor);
+    // Si cambia el número base, los números fijados por un intento fallido ya no aplican
+    setLineas((prev) => prev.map((l) => ({ ...l, numeroFijo: undefined })));
   };
 
-  const handleCantidadChange = (val: number | '') => {
-    setCantidad(val);
-    validarStock(val);
-  };
+  const baseNumero = exitNumber.trim();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setExito(null);
-    if (!materialSeleccionado || !cantidad || !centroCosto.trim() || !exitNumber.trim()) return;
+    if (!baseNumero || !centroCosto.trim()) return;
 
-    if (Number(cantidad) > stockDisponible) {
-      setError('No se puede registrar la salida: stock insuficiente');
+    if (lineas.some((l) => !l.codigo || !l.cantidad)) {
+      setError('Completa material y cantidad en todas las líneas (o quita las que sobren).');
+      return;
+    }
+    if (hayErrorStock) {
+      setError('No se puede registrar la salida: hay materiales con stock insuficiente.');
+      return;
+    }
+
+    const total = lineas.length;
+    const numeros = lineas.map((l, i) => l.numeroFijo ?? numeroDeLinea(baseNumero, i, total));
+    if (numeros.some((n) => n.length > MAX_NUMERO_DOCUMENTO)) {
+      setError(`El número de vale es muy largo: con varios materiales se le agrega un sufijo y el máximo es ${MAX_NUMERO_DOCUMENTO} caracteres.`);
       return;
     }
 
     setGuardando(true);
-    try {
-      await registrarSalida(
-        {
-          internal_code: materialSeleccionado.internal_code,
-          exit_number: exitNumber.trim(),
-          cost_center: centroCosto.trim(),
-          quantity: Number(cantidad),
-          unit_value: Number(unitValue) || 0,
-          exit_date: fecha || undefined,
-        },
-        warehouseId
-      );
+    let guardadas = 0;
+    const fallidas: { linea: LineaSalida; mensaje: string }[] = [];
 
-      setCodigoSeleccionado('');
+    // Un registro por material, uno detrás de otro (el backend descuenta el saldo de cada uno)
+    for (let i = 0; i < total; i++) {
+      const l = lineas[i];
+      try {
+        await registrarSalida(
+          {
+            internal_code: l.codigo,
+            exit_number: numeros[i],
+            cost_center: centroCosto.trim(),
+            quantity: Number(l.cantidad),
+            unit_value: Number(l.valorUnitario) || 0,
+            exit_date: fecha || undefined,
+          },
+          warehouseId
+        );
+        guardadas++;
+      } catch (err) {
+        fallidas.push({
+          linea: { ...l, numeroFijo: numeros[i] },
+          mensaje: getErrorMessage(err, 'No se pudo registrar'),
+        });
+      }
+    }
+
+    if (fallidas.length === 0) {
+      // Solo se limpia el formulario si el servidor confirmó TODO
+      setLineas([nuevaLinea()]);
       setExitNumber('');
       setCentroCosto('');
-      setCantidad('');
-      setUnitValue('');
       setFecha(hoyLocal());
-      setErrorStock(null);
-      setExito('Salida registrada en el servidor. El inventario y el dashboard ya están actualizados.');
-
-      // Se vuelve a pedir todo al servidor: stock real y lista real
-      await Promise.all([cargarSalidas(), cargarInventario(busquedaMaterial)]);
-    } catch (err) {
-      setError(getErrorMessage(err, 'No se pudo registrar la salida. NO se guardó en el servidor.'));
-    } finally {
-      setGuardando(false);
+      setExito(
+        total === 1
+          ? 'Salida registrada en el servidor. El inventario y el dashboard ya están actualizados.'
+          : `${total} salidas registradas en el servidor. El inventario y el dashboard ya están actualizados.`
+      );
+    } else {
+      // Se conservan solo las líneas que fallaron para poder corregirlas y reintentar
+      setLineas(fallidas.map((f) => f.linea));
+      const detalle = fallidas
+        .map((f) => `${f.linea.codigo} (${f.linea.numeroFijo}): ${f.mensaje}`)
+        .join(' | ');
+      setError(
+        guardadas === 0
+          ? `NO se guardó nada en el servidor. ${detalle}`
+          : `Se guardaron ${guardadas} de ${total}. Faltan por guardar (siguen en el formulario): ${detalle}`
+      );
+      if (guardadas > 0) setExito(`${guardadas} de ${total} salidas ya quedaron registradas.`);
     }
+
+    // Se vuelve a pedir todo al servidor: stock real y lista real
+    await Promise.all([cargarSalidas(), cargarInventario(busquedaMaterial)]);
+    setGuardando(false);
   };
 
   return (
@@ -171,7 +238,7 @@ export const Salidas: React.FC = () => {
 
       <div style={cardStyle}>
         <h2 style={{ fontSize: '1.2rem', color: '#1f2937', marginBottom: '16px' }}>
-          Generar Vale de Salida
+          Generar Vale de Salida (uno o varios materiales)
         </h2>
 
         {error && (
@@ -190,38 +257,6 @@ export const Salidas: React.FC = () => {
           style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}
         >
           <div>
-            <label style={labelStyle}>Buscar material</label>
-            <input
-              type="text"
-              value={busquedaMaterial}
-              onChange={(e) => setBusquedaMaterial(e.target.value)}
-              placeholder="Nombre o código..."
-              style={inputStyle}
-            />
-          </div>
-
-          <div>
-            <label style={labelStyle}>Material *</label>
-            <select
-              value={codigoSeleccionado}
-              onChange={(e) => {
-                setCodigoSeleccionado(e.target.value);
-                setCantidad('');
-                setErrorStock(null);
-              }}
-              style={inputStyle}
-              required
-            >
-              <option value="">-- Seleccionar Material --</option>
-              {materialesDisponibles.map((item) => (
-                <option key={item.id_inventory} value={item.internal_code}>
-                  {item.internal_code} - {item.material_name} (Stock: {item.current_stock} {item.unit})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
             <label style={labelStyle}>Fecha de la salida *</label>
             <input
               type="date"
@@ -238,7 +273,7 @@ export const Salidas: React.FC = () => {
             <input
               type="text"
               value={exitNumber}
-              onChange={(e) => setExitNumber(e.target.value)}
+              onChange={(e) => handleNumeroChange(e.target.value)}
               placeholder="Ej. VALE-001"
               style={inputStyle}
               required
@@ -257,34 +292,158 @@ export const Salidas: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label style={labelStyle}>Cantidad a Despachar *</label>
-            <input
-              type="number"
-              min="0.01"
-              step="any"
-              value={cantidad}
-              onChange={(e) => handleCantidadChange(e.target.value ? Number(e.target.value) : '')}
-              placeholder="0"
-              style={inputStyle}
-              required
-            />
+          <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #e5e7eb', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#1f2937' }}>
+                Materiales a despachar ({lineas.length})
+              </h3>
+              <div style={{ minWidth: '240px', flex: '0 1 320px' }}>
+                <label style={labelStyle}>Buscar material (filtra las listas)</label>
+                <input
+                  type="text"
+                  value={busquedaMaterial}
+                  onChange={(e) => setBusquedaMaterial(e.target.value)}
+                  placeholder="Nombre o código..."
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {lineas.map((linea, indice) => {
+                const material = linea.codigo ? catalogo[linea.codigo] : undefined;
+                const errorLinea = errorStockDe(linea);
+                const subtotal = (Number(linea.cantidad) || 0) * (Number(linea.valorUnitario) || 0);
+                return (
+                  <div
+                    key={linea.id}
+                    style={{
+                      padding: '12px',
+                      backgroundColor: '#f9fafb',
+                      border: `1px solid ${errorLinea ? '#fecaca' : '#e5e7eb'}`,
+                      borderRadius: '10px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+                        gap: '12px',
+                        alignItems: 'end',
+                      }}
+                    >
+                      <div style={{ gridColumn: 'span 2' }}>
+                        <label style={labelStyle}>Material {indice + 1} *</label>
+                        <select
+                          value={linea.codigo}
+                          onChange={(e) => actualizarLinea(linea.id, { codigo: e.target.value, cantidad: '' })}
+                          style={inputStyle}
+                          required
+                        >
+                          <option value="">-- Seleccionar Material --</option>
+                          {opcionesDeLinea(linea).map((item) => (
+                            <option
+                              key={item.id_inventory}
+                              value={item.internal_code}
+                              disabled={codigosUsados.has(item.internal_code) && item.internal_code !== linea.codigo}
+                            >
+                              {item.internal_code} - {item.material_name} (Stock: {item.current_stock} {item.unit})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={labelStyle}>
+                          Cantidad * {material ? `(${material.unit})` : ''}
+                        </label>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="any"
+                          value={linea.cantidad}
+                          onChange={(e) => actualizarLinea(linea.id, { cantidad: e.target.value ? Number(e.target.value) : '' })}
+                          placeholder="0"
+                          style={inputStyle}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label style={labelStyle}>Valor Unitario ($) (Opcional)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={linea.valorUnitario}
+                          onChange={(e) => actualizarLinea(linea.id, { valorUnitario: e.target.value ? Number(e.target.value) : '' })}
+                          placeholder="0.00"
+                          style={inputStyle}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <span style={{ fontWeight: 'bold', color: '#ef4444' }}>${subtotal.toLocaleString()}</span>
+                        <button
+                          type="button"
+                          onClick={() => quitarLinea(linea.id)}
+                          disabled={lineas.length === 1}
+                          title="Quitar este material"
+                          style={{
+                            border: '1px solid #fecaca',
+                            backgroundColor: '#fff',
+                            color: lineas.length === 1 ? '#d1d5db' : '#b91c1c',
+                            borderRadius: '8px',
+                            padding: '8px 10px',
+                            cursor: lineas.length === 1 ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    </div>
+
+                    {material && (
+                      <div style={{ marginTop: '8px', fontSize: '0.8rem', color: material.current_stock > 0 ? '#047857' : '#b91c1c' }}>
+                        Stock disponible: <strong>{material.current_stock} {material.unit}</strong>
+                      </div>
+                    )}
+                    {errorLinea && (
+                      <div style={{ marginTop: '6px', color: '#ef4444', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                        {errorLinea}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={agregarLinea}
+              style={{
+                marginTop: '12px',
+                backgroundColor: '#fff',
+                color: '#344e41',
+                border: '1px dashed #344e41',
+                borderRadius: '8px',
+                padding: '10px 16px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+            >
+              + Agregar otro material
+            </button>
+
+            {lineas.length > 1 && baseNumero && (
+              <p style={{ margin: '12px 0 0 0', fontSize: '0.8rem', color: '#6b7280' }}>
+                Cada material se guarda como un registro con su propio número: {numeroDeLinea(baseNumero, 0, lineas.length)}, {numeroDeLinea(baseNumero, 1, lineas.length)}
+                {lineas.length > 2 ? ', ...' : ''}
+              </p>
+            )}
           </div>
 
-          <div>
-            <label style={labelStyle}>Valor Unitario ($) (Opcional)</label>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              value={unitValue}
-              onChange={(e) => setUnitValue(e.target.value ? Number(e.target.value) : '')}
-              placeholder="0.00"
-              style={inputStyle}
-            />
-          </div>
-
-          {materialSeleccionado && (
+          {valorTotalCalculado > 0 && (
             <div
               style={{
                 gridColumn: '1 / -1',
@@ -297,36 +456,30 @@ export const Salidas: React.FC = () => {
                 alignItems: 'center',
               }}
             >
-              <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>Stock Disponible Actual:</span>
-              <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: stockDisponible > 0 ? '#10b981' : '#ef4444' }}>
-                {stockDisponible} {materialSeleccionado.unit}
+              <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>Valor total del vale:</span>
+              <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#344e41' }}>
+                ${valorTotalCalculado.toLocaleString()}
               </span>
-            </div>
-          )}
-
-          {errorStock && (
-            <div style={{ gridColumn: '1 / -1', color: '#ef4444', backgroundColor: '#fef2f2', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
-              {errorStock}
             </div>
           )}
 
           <button
             type="submit"
-            disabled={!!errorStock || guardando}
+            disabled={hayErrorStock || guardando}
             style={{
               gridColumn: '1 / -1',
-              backgroundColor: errorStock || guardando ? '#9ca3af' : '#344e41',
+              backgroundColor: hayErrorStock || guardando ? '#9ca3af' : '#344e41',
               color: '#fff',
               padding: '12px',
               border: 'none',
               borderRadius: '8px',
               fontWeight: 'bold',
               fontSize: '1rem',
-              cursor: errorStock || guardando ? 'not-allowed' : 'pointer',
+              cursor: hayErrorStock || guardando ? 'not-allowed' : 'pointer',
               transition: 'background-color 0.2s',
             }}
           >
-            {guardando ? 'Guardando...' : 'Registrar Salida'}
+            {guardando ? 'Guardando...' : lineas.length > 1 ? `Registrar ${lineas.length} Salidas` : 'Registrar Salida'}
           </button>
         </form>
       </div>

@@ -10,6 +10,7 @@ import { obtenerMateriales, type MaterialBackend } from '../../services/material
 import { resolverWarehouseId } from '../../utils/sedeHelpers';
 import { getErrorMessage } from '../../utils/apiError';
 import { fechaCorta, hoyLocal } from '../../utils/fecha';
+import { MAX_NUMERO_DOCUMENTO, numeroDeLinea, siguienteIdLinea } from '../../utils/lote';
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -36,6 +37,17 @@ const cardStyle: React.CSSProperties = {
   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
 };
 
+interface LineaEntrada {
+  id: number;
+  codigo: string;
+  cantidad: number | '';
+  valorUnitario: number | '';
+  // Número ya asignado a una línea que falló, para reintentar sin duplicar las que sí se guardaron
+  numeroFijo?: string;
+}
+
+const nuevaLinea = (): LineaEntrada => ({ id: siguienteIdLinea(), codigo: '', cantidad: '', valorUnitario: '' });
+
 export const Entradas: React.FC = () => {
   const { usuario } = useContext(AuthContext);
   const [searchParams] = useSearchParams();
@@ -49,12 +61,11 @@ export const Entradas: React.FC = () => {
   const [exito, setExito] = useState<string | null>(null);
 
   const [busquedaMaterial, setBusquedaMaterial] = useState('');
-  const [codigoSeleccionado, setCodigoSeleccionado] = useState('');
+  const [catalogo, setCatalogo] = useState<Record<string, MaterialBackend>>({});
+  const [lineas, setLineas] = useState<LineaEntrada[]>(() => [nuevaLinea()]);
   const [entryNumber, setEntryNumber] = useState('');
   const [proveedor, setProveedor] = useState('');
   const [fecha, setFecha] = useState<string>(hoyLocal());
-  const [cantidad, setCantidad] = useState<number | ''>('');
-  const [valorUnitario, setValorUnitario] = useState<number | ''>('');
 
   // Historial REAL desde la base de datos
   const cargarEntradas = useCallback(async () => {
@@ -78,52 +89,118 @@ export const Entradas: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       obtenerMateriales(busquedaMaterial, 50)
-        .then(setMateriales)
+        .then((lista) => {
+          setMateriales(lista);
+          // Se recuerdan los materiales ya vistos para no perder el nombre/unidad de una línea al cambiar la búsqueda
+          setCatalogo((prev) => ({ ...prev, ...Object.fromEntries(lista.map((m) => [m.internal_code, m])) }));
+        })
         .catch(() => setMateriales([]));
     }, 250);
     return () => clearTimeout(timer);
   }, [busquedaMaterial]);
 
-  const materialSeleccionado = materiales.find((m) => m.internal_code === codigoSeleccionado);
-  const valorTotalCalculado = (Number(cantidad) || 0) * (Number(valorUnitario) || 0);
+  const codigosUsados = new Set(lineas.map((l) => l.codigo).filter(Boolean));
+  const valorTotalCalculado = lineas.reduce(
+    (acc, l) => acc + (Number(l.cantidad) || 0) * (Number(l.valorUnitario) || 0),
+    0
+  );
+
+  // Opciones de una línea: el resultado de la búsqueda + el material que ya tenía elegido
+  const opcionesDeLinea = (linea: LineaEntrada): MaterialBackend[] => {
+    const elegido = linea.codigo ? catalogo[linea.codigo] : undefined;
+    return elegido && !materiales.some((m) => m.internal_code === elegido.internal_code)
+      ? [elegido, ...materiales]
+      : materiales;
+  };
+
+  const actualizarLinea = (id: number, cambios: Partial<LineaEntrada>) =>
+    setLineas((prev) => prev.map((l) => (l.id === id ? { ...l, ...cambios } : l)));
+  const agregarLinea = () => setLineas((prev) => [...prev, nuevaLinea()]);
+  const quitarLinea = (id: number) =>
+    setLineas((prev) => (prev.length > 1 ? prev.filter((l) => l.id !== id) : prev));
+
+  const handleNumeroChange = (valor: string) => {
+    setEntryNumber(valor);
+    // Si cambia el número base, los números fijados por un intento fallido ya no aplican
+    setLineas((prev) => prev.map((l) => ({ ...l, numeroFijo: undefined })));
+  };
+
+  const baseNumero = entryNumber.trim();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setExito(null);
-    if (!codigoSeleccionado || !cantidad || valorUnitario === '' || !entryNumber.trim()) return;
+    if (!baseNumero) return;
+
+    if (lineas.some((l) => !l.codigo || !l.cantidad || l.valorUnitario === '')) {
+      setError('Completa material, cantidad y valor unitario en todas las líneas (o quita las que sobren).');
+      return;
+    }
+
+    const total = lineas.length;
+    const numeros = lineas.map((l, i) => l.numeroFijo ?? numeroDeLinea(baseNumero, i, total));
+    if (numeros.some((n) => n.length > MAX_NUMERO_DOCUMENTO)) {
+      setError(`El número de documento es muy largo: con varios materiales se le agrega un sufijo y el máximo es ${MAX_NUMERO_DOCUMENTO} caracteres.`);
+      return;
+    }
 
     setGuardando(true);
-    try {
-      await registrarEntrada(
-        {
-          internal_code: codigoSeleccionado,
-          entry_number: entryNumber.trim(),
-          quantity: Number(cantidad),
-          unit_value: Number(valorUnitario),
-          provider: proveedor.trim() || undefined,
-          entry_date: fecha || undefined,
-        },
-        warehouseId
-      );
+    let guardadas = 0;
+    const fallidas: { linea: LineaEntrada; mensaje: string }[] = [];
 
-      // Solo se limpia el formulario si el servidor confirmó el guardado
-      setCodigoSeleccionado('');
+    // Un registro por material, uno detrás de otro (el backend guarda cada entrada y suma su saldo)
+    for (let i = 0; i < total; i++) {
+      const l = lineas[i];
+      try {
+        await registrarEntrada(
+          {
+            internal_code: l.codigo,
+            entry_number: numeros[i],
+            quantity: Number(l.cantidad),
+            unit_value: Number(l.valorUnitario),
+            provider: proveedor.trim() || undefined,
+            entry_date: fecha || undefined,
+          },
+          warehouseId
+        );
+        guardadas++;
+      } catch (err) {
+        fallidas.push({
+          linea: { ...l, numeroFijo: numeros[i] },
+          mensaje: getErrorMessage(err, 'No se pudo registrar'),
+        });
+      }
+    }
+
+    if (fallidas.length === 0) {
+      // Solo se limpia el formulario si el servidor confirmó TODO
+      setLineas([nuevaLinea()]);
       setEntryNumber('');
       setProveedor('');
-      setCantidad('');
-      setValorUnitario('');
       setFecha(hoyLocal());
-      setExito('Entrada registrada en el servidor. El inventario y el dashboard ya están actualizados.');
-
-      // Se vuelve a pedir la lista real (nada se fabrica en el navegador)
-      await cargarEntradas();
-    } catch (err) {
-      // Si falla, el formulario se conserva para no perder lo digitado
-      setError(getErrorMessage(err, 'No se pudo registrar la entrada. NO se guardó en el servidor.'));
-    } finally {
-      setGuardando(false);
+      setExito(
+        total === 1
+          ? 'Entrada registrada en el servidor. El inventario y el dashboard ya están actualizados.'
+          : `${total} entradas registradas en el servidor. El inventario y el dashboard ya están actualizados.`
+      );
+    } else {
+      // Se conservan solo las líneas que fallaron para poder corregirlas y reintentar
+      setLineas(fallidas.map((f) => f.linea));
+      const detalle = fallidas
+        .map((f) => `${f.linea.codigo} (${f.linea.numeroFijo}): ${f.mensaje}`)
+        .join(' | ');
+      setError(
+        guardadas === 0
+          ? `NO se guardó nada en el servidor. ${detalle}`
+          : `Se guardaron ${guardadas} de ${total}. Faltan por guardar (siguen en el formulario): ${detalle}`
+      );
+      if (guardadas > 0) setExito(`${guardadas} de ${total} entradas ya quedaron registradas.`);
     }
+
+    // Se vuelve a pedir la lista real (nada se fabrica en el navegador)
+    await cargarEntradas();
+    setGuardando(false);
   };
 
   return (
@@ -139,7 +216,7 @@ export const Entradas: React.FC = () => {
 
       <div style={cardStyle}>
         <h2 style={{ fontSize: '1.2rem', color: '#1f2937', marginBottom: '16px' }}>
-          Registrar Nuevo Ingreso de Material
+          Registrar Nuevo Ingreso de Material (uno o varios)
         </h2>
 
         {error && (
@@ -158,34 +235,6 @@ export const Entradas: React.FC = () => {
           style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}
         >
           <div>
-            <label style={labelStyle}>Buscar material</label>
-            <input
-              type="text"
-              value={busquedaMaterial}
-              onChange={(e) => setBusquedaMaterial(e.target.value)}
-              placeholder="Nombre o código..."
-              style={inputStyle}
-            />
-          </div>
-
-          <div>
-            <label style={labelStyle}>Material *</label>
-            <select
-              value={codigoSeleccionado}
-              onChange={(e) => setCodigoSeleccionado(e.target.value)}
-              style={inputStyle}
-              required
-            >
-              <option value="">-- Seleccionar Material --</option>
-              {materiales.map((item) => (
-                <option key={item.id_material} value={item.internal_code}>
-                  {item.internal_code} - {item.material_name} ({item.unit})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
             <label style={labelStyle}>Fecha de la entrada *</label>
             <input
               type="date"
@@ -202,7 +251,7 @@ export const Entradas: React.FC = () => {
             <input
               type="text"
               value={entryNumber}
-              onChange={(e) => setEntryNumber(e.target.value)}
+              onChange={(e) => handleNumeroChange(e.target.value)}
               placeholder="Ej. FAC-001"
               style={inputStyle}
               required
@@ -220,34 +269,139 @@ export const Entradas: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label style={labelStyle}>
-              Cantidad * {materialSeleccionado ? `(${materialSeleccionado.unit})` : ''}
-            </label>
-            <input
-              type="number"
-              min="0.01"
-              step="any"
-              value={cantidad}
-              onChange={(e) => setCantidad(e.target.value ? Number(e.target.value) : '')}
-              placeholder="0"
-              style={inputStyle}
-              required
-            />
-          </div>
+          <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #e5e7eb', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#1f2937' }}>
+                Materiales ({lineas.length})
+              </h3>
+              <div style={{ minWidth: '240px', flex: '0 1 320px' }}>
+                <label style={labelStyle}>Buscar material (filtra las listas)</label>
+                <input
+                  type="text"
+                  value={busquedaMaterial}
+                  onChange={(e) => setBusquedaMaterial(e.target.value)}
+                  placeholder="Nombre o código..."
+                  style={inputStyle}
+                />
+              </div>
+            </div>
 
-          <div>
-            <label style={labelStyle}>Valor Unitario ($) *</label>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              value={valorUnitario}
-              onChange={(e) => setValorUnitario(e.target.value ? Number(e.target.value) : '')}
-              placeholder="0.00"
-              style={inputStyle}
-              required
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {lineas.map((linea, indice) => {
+                const material = linea.codigo ? catalogo[linea.codigo] : undefined;
+                const subtotal = (Number(linea.cantidad) || 0) * (Number(linea.valorUnitario) || 0);
+                return (
+                  <div
+                    key={linea.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+                      gap: '12px',
+                      alignItems: 'end',
+                      padding: '12px',
+                      backgroundColor: '#f9fafb',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '10px',
+                    }}
+                  >
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={labelStyle}>Material {indice + 1} *</label>
+                      <select
+                        value={linea.codigo}
+                        onChange={(e) => actualizarLinea(linea.id, { codigo: e.target.value })}
+                        style={inputStyle}
+                        required
+                      >
+                        <option value="">-- Seleccionar Material --</option>
+                        {opcionesDeLinea(linea).map((item) => (
+                          <option
+                            key={item.id_material}
+                            value={item.internal_code}
+                            disabled={codigosUsados.has(item.internal_code) && item.internal_code !== linea.codigo}
+                          >
+                            {item.internal_code} - {item.material_name} ({item.unit})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={labelStyle}>
+                        Cantidad * {material ? `(${material.unit})` : ''}
+                      </label>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="any"
+                        value={linea.cantidad}
+                        onChange={(e) => actualizarLinea(linea.id, { cantidad: e.target.value ? Number(e.target.value) : '' })}
+                        placeholder="0"
+                        style={inputStyle}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label style={labelStyle}>Valor Unitario ($) *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={linea.valorUnitario}
+                        onChange={(e) => actualizarLinea(linea.id, { valorUnitario: e.target.value ? Number(e.target.value) : '' })}
+                        placeholder="0.00"
+                        style={inputStyle}
+                        required
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      <span style={{ fontWeight: 'bold', color: '#344e41' }}>${subtotal.toLocaleString()}</span>
+                      <button
+                        type="button"
+                        onClick={() => quitarLinea(linea.id)}
+                        disabled={lineas.length === 1}
+                        title="Quitar este material"
+                        style={{
+                          border: '1px solid #fecaca',
+                          backgroundColor: '#fff',
+                          color: lineas.length === 1 ? '#d1d5db' : '#b91c1c',
+                          borderRadius: '8px',
+                          padding: '8px 10px',
+                          cursor: lineas.length === 1 ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={agregarLinea}
+              style={{
+                marginTop: '12px',
+                backgroundColor: '#fff',
+                color: '#344e41',
+                border: '1px dashed #344e41',
+                borderRadius: '8px',
+                padding: '10px 16px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+            >
+              + Agregar otro material
+            </button>
+
+            {lineas.length > 1 && baseNumero && (
+              <p style={{ margin: '12px 0 0 0', fontSize: '0.8rem', color: '#6b7280' }}>
+                Cada material se guarda como un registro con su propio número: {numeroDeLinea(baseNumero, 0, lineas.length)}, {numeroDeLinea(baseNumero, 1, lineas.length)}
+                {lineas.length > 2 ? ', ...' : ''}
+              </p>
+            )}
           </div>
 
           <div
@@ -283,7 +437,7 @@ export const Entradas: React.FC = () => {
               cursor: guardando ? 'not-allowed' : 'pointer',
             }}
           >
-            {guardando ? 'Guardando...' : 'Guardar Entrada'}
+            {guardando ? 'Guardando...' : lineas.length > 1 ? `Guardar ${lineas.length} Entradas` : 'Guardar Entrada'}
           </button>
         </form>
       </div>

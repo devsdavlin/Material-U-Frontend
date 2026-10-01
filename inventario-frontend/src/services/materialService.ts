@@ -101,18 +101,4 @@ export const materialService = {
       return [];
     }
   },
-
-  subirExcel: async (archivo: File): Promise<{ mensaje: string; insertados: number }> => {
-    const formData = new FormData();
-    formData.append('file', archivo);
-
-    try {
-      const respuesta = await api.post('/materials/importar-excel', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return respuesta.data;
-    } catch (error) {
-      throw parseError(error, 'No se pudo subir el archivo Excel');
-    }
-  },
 };
