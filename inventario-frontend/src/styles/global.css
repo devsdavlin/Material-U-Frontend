@@ -1,15 +1,12 @@
-
 :root {
-  /* Paleta de marca (sin cambios) */
+
   --green-900: #0f291e;
   --green-800: #123b2b;
   --green-700: #344e41;
 
-  /* Paleta nueva */
   --crema: #e3ddd3;
   --amarillo: #fadc51;
 
-  /* Neutros estilo Apple */
   --bg: #eeeae1;
   --surface: #ffffff;
   --label: #2b4136;
@@ -18,7 +15,6 @@
   --fill: rgba(120, 120, 128, 0.08);
   --fill-hover: rgba(120, 120, 128, 0.14);
 
-  /* Radios, sombras, easing */
   --r-sm: 10px;
   --r-md: 14px;
   --r-lg: 20px;
