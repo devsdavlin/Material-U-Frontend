@@ -13,11 +13,15 @@
   --green-800: #123b2b;
   --green-700: #344e41;
 
+  /* Paleta nueva */
+  --crema: #e3ddd3;
+  --amarillo: #fadc51;
+
   /* Neutros estilo Apple */
-  --bg: #f5f6f4;
+  --bg: #eeeae1;
   --surface: #ffffff;
-  --label: #1d1d1f;
-  --label-2: #6e6e73;
+  --label: #2b4136;
+  --label-2: #6a7566;
   --separator: rgba(60, 60, 67, 0.14);
   --fill: rgba(120, 120, 128, 0.08);
   --fill-hover: rgba(120, 120, 128, 0.14);
@@ -30,7 +34,7 @@
     0 8px 24px rgba(15, 41, 30, 0.05);
   --shadow-float: 0 0 0 0.5px rgba(15, 41, 30, 0.08), 0 24px 60px rgba(15, 41, 30, 0.22);
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
-  --focus-ring: 0 0 0 4px rgba(52, 78, 65, 0.22);
+  --focus-ring: 0 0 0 4px rgba(250, 220, 81, 0.5);
 
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter',
     'Segoe UI', system-ui, sans-serif;
@@ -55,7 +59,7 @@ html {
 }
 
 body {
-  background: var(--bg);
+  background: linear-gradient(135deg, #f3f0e9 0%, #e9e4da 100%) fixed;
   color: var(--label);
   letter-spacing: -0.011em;
   line-height: 1.47;
@@ -67,7 +71,8 @@ body, body *:not(code):not(pre):not(kbd) {
 }
 
 ::selection {
-  background: rgba(52, 78, 65, 0.22);
+  background: #fadc51;
+  color: #344e41;
 }
 
 /* ---------- Encabezados: jerarquía por tamaño y tracking negativo ---------- */
@@ -267,3 +272,122 @@ div[style*='border-radius: 24px'][style*='max-width: 420px'] {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   PALETA NUEVA — #344e41 (verde), #e3ddd3 (crema), #fadc51 (amarillo)
+   Capa final: va al fondo del archivo para ganar a las reglas anteriores.
+   Los selectores [style*="rgb(...)"] leen el color que cada página escribe
+   en línea (el navegador lo guarda como rgb), por eso no hay que tocar las páginas.
+   ========================================================================== */
+
+/* ---------- Fondo decorativo (círculos como en el diseño de referencia) ---------- */
+#root { position: relative; z-index: 1; }
+body::before {
+  content: '';
+  position: fixed;
+  top: -140px;
+  left: -120px;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: #fadc51;
+  opacity: 0.9;
+  z-index: 0;
+  pointer-events: none;
+}
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -220px;
+  right: -160px;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: #344e41;
+  opacity: 0.07;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Páginas que pintaban su propio fondo: ahora dejan ver el del layout */
+main div[style*="background-color: rgb(248, 250, 248)"],
+main div[style*="background-color: rgb(246, 247, 245)"] {
+  background: transparent !important;
+}
+
+/* ---------- Botones principales: amarillo con texto verde ---------- */
+button[style*="background-color: rgb(18, 59, 43)"],
+button[style*="background-color: rgb(52, 78, 65)"],
+span[style*="background-color: rgb(18, 59, 43)"][style*="text-align: center"] {
+  background-color: #fadc51 !important;
+  color: #344e41 !important;
+  box-shadow: 0 8px 18px rgba(250, 220, 81, 0.45) !important;
+}
+/* Login: botón verde con texto amarillo (el fondo ya tiene amarillo) */
+button[style*="background: rgb(52, 78, 65)"] {
+  color: #fadc51 !important;
+  box-shadow: 0 10px 24px rgba(52, 78, 65, 0.35) !important;
+}
+
+/* ---------- Barra lateral: panel flotante verde oscuro ---------- */
+aside {
+  top: 14px !important;
+  left: 14px !important;
+  bottom: auto !important;
+  height: calc(100vh - 28px) !important;
+  border-radius: 30px !important;
+  border-right: none !important;
+  background: linear-gradient(180deg, #3b5a49 0%, #344e41 45%, #2b4136 100%) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 18px 40px rgba(43, 65, 54, 0.32) !important;
+}
+
+/* Enlaces: claros sobre el verde; el activo es una píldora crema */
+aside a {
+  color: #d9d6cc !important;
+  border-radius: 16px !important;
+}
+aside a span { color: #e3ddd3 !important; }
+aside a svg { stroke: currentColor !important; }
+aside a:hover:not([aria-current='page']) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+aside a[aria-current='page'] {
+  background: #e3ddd3 !important;
+  color: #344e41 !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2) !important;
+}
+aside a[aria-current='page'] span { color: #344e41 !important; }
+aside hr {
+  border: none !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
+}
+
+/* Tarjeta del usuario */
+aside div[style*="background-color: rgb(248, 250, 248)"] {
+  background: rgba(255, 255, 255, 0.09) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 18px !important;
+  box-shadow: none !important;
+}
+aside p { color: #ffffff !important; }
+aside p + p { color: #fadc51 !important; font-weight: 600; }
+
+/* Avatar: disco crema, figura verde, aro amarillo */
+aside svg[viewBox="0 0 40 40"] { overflow: visible; }
+aside svg circle[fill="#e8ece8"] {
+  fill: #e3ddd3;
+  stroke: #fadc51;
+  stroke-width: 2.5px;
+}
+aside svg g[fill="#838a96"] { fill: #344e41; }
+
+/* Cerrar sesión */
+aside button {
+  background: rgba(250, 220, 81, 0.14) !important;
+  color: #fadc51 !important;
+}
+aside button:hover:not(:disabled) { background: rgba(250, 220, 81, 0.28) !important; }
+aside button svg { stroke: currentColor !important; }
