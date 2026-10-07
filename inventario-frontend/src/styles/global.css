@@ -1,11 +1,3 @@
-/* ==========================================================================
-   Apple Design System — Inventario
-   Mantiene la paleta verde original (#0f291e / #123b2b / #344e41) y aplica
-   los principios de Apple HIG: tipografía SF, jerarquía clara, superficies
-   con vidrio (translucent materials), radios continuos, sombras suaves,
-   foco visible y micro-interacciones sutiles.
-   Nota: las páginas usan estilos inline, por eso se usa !important.
-   ========================================================================== */
 
 :root {
   /* Paleta de marca (sin cambios) */
