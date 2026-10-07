@@ -103,14 +103,15 @@ const Variacion: React.FC<{ pct: number | null; claro?: boolean; puntos?: boolea
 const Kpi: React.FC<{ titulo: string; valor: string; icono: string; pct: number | null; variante?: 'verde' | 'mantequilla'; puntos?: boolean }> = ({ titulo, valor, icono, pct, variante, puntos }) => {
   const verde = variante === 'verde';
   return (
-    <div style={{ ...card, backgroundColor: verde ? VERDE : variante === 'mantequilla' ? MANTEQUILLA : '#fff', color: verde ? '#fff' : '#0f291e', border: verde ? 'none' : card.border, display: 'flex', flexDirection: 'column', gap: '18px', minHeight: '150px', justifyContent: 'space-between' }}>
+    <div style={{ ...card, backgroundColor: verde ? VERDE : variante === 'mantequilla' ? MANTEQUILLA : '#fff', color: verde ? '#fff' : '#0f291e', border: verde ? 'none' : card.border, display: 'flex', flexDirection: 'column', gap: '18px', minHeight: '150px', justifyContent: 'space-between', minWidth: 0, containerType: 'inline-size' } as React.CSSProperties}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: '0.95rem', fontWeight: 600, opacity: verde ? 0.9 : 0.75 }}>{titulo}</span>
         <span style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: verde ? 'rgba(255,255,255,0.16)' : '#f0f4f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Icono d={icono} color={verde ? '#fff' : VERDE} />
         </span>
       </div>
-      <div style={{ fontSize: 'clamp(1.7rem, 3vw, 2.4rem)', fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>{valor}</div>
+      {/* El tamaño se ajusta al ancho de la tarjeta y a la cantidad de dígitos, así cifras grandes (millones) no se salen */}
+      <div style={{ fontSize: `clamp(1.2rem, ${(100 / (Math.max(valor.length, 6) * 0.66)).toFixed(2)}cqw, 2.4rem)`, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1, whiteSpace: 'nowrap' }}>{valor}</div>
       <Variacion pct={pct} claro={verde} puntos={puntos} />
     </div>
   );
