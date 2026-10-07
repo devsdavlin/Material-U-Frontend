@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { crearSede, guardarSedeSeleccionada, obtenerSedesActivas, type Sede } from '../../services/sedeService';
+import { useToast } from '../../hooks/useToast';
 
 const input: React.CSSProperties = { padding: '10px 12px', borderRadius: '10px', border: '1px solid #d1d5db', flex: '1 1 260px' };
 
 export const Sedes: React.FC = () => {
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -31,9 +33,10 @@ export const Sedes: React.FC = () => {
   try {
     await crearSede(nombreSede);
     setNombreSede('');
+    showToast('Sede creada correctamente.', 'success');
     await cargar();
   } catch (error) {
-    alert(error instanceof Error ? error.message : 'No se pudo crear la sede');
+    showToast(error instanceof Error ? error.message : 'No se pudo crear la sede', 'error');
   } finally {
     setEnviando(false);
   }

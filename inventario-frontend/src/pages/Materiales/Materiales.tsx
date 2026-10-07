@@ -3,8 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { useInventario } from '../../context/InventarioContext';
 import { obtenerMateriales, crearMaterial, desactivarMaterial, type Material, type MaterialBackend } from '../../services/materialService';
 import { getLocalSaveWarning } from '../../utils/offlineMode';
+import { useToast } from '../../hooks/useToast';
 
 export const Materiales: React.FC = () => {
+  const { showToast } = useToast();
   const { agregarMaterial, eliminarMaterial, entradas, salidas } = useInventario();
   const [materialesApi, setMaterialesApi] = useState<MaterialBackend[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
@@ -75,15 +77,11 @@ export const Materiales: React.FC = () => {
       setDescripcion('');
       setCategoria('');
       setStockMinimo('');
-      alert('Material registrado en el servidor.');
+      showToast('Material registrado correctamente.', 'success');
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Error al registrar en el backend';
-      alert(`${msg}. ${getLocalSaveWarning()}`);
-
-      setCodigo('');
-      setDescripcion('');
-      setCategoria('');
-      setStockMinimo('');
+      // Se conserva lo digitado para poder corregirlo y reintentar
+      showToast(`${msg}. ${getLocalSaveWarning()}`, 'error');
     }
   };
 

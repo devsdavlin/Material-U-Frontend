@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { obtenerSedesActivas, type Sede } from '../../services/sedeService';
 import { actualizarUsuario, crearUsuario, eliminarUsuario, obtenerUsuariosActivos, reactivarUsuario } from '../../services/usuarioService';
 import type { Usuario } from '../../types/Usuario';
+import { useToast } from '../../hooks/useToast';
 
 const campo: React.CSSProperties = { padding: '10px 12px', borderRadius: '10px', border: '1px solid #d1d5db' };
 const btn: React.CSSProperties = { border: 'none', borderRadius: '10px', padding: '8px 14px', fontWeight: 700, cursor: 'pointer' };
@@ -63,6 +64,7 @@ const PasswordInput: React.FC<PasswordInputProps> = ({ value, onChange, placehol
 const esAdminRol = (rol: string) => rol === 'Administrador' || rol === 'ADMINISTRADOR';
 
 export const Usuarios: React.FC = () => {
+  const { showToast } = useToast();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -94,7 +96,7 @@ export const Usuarios: React.FC = () => {
   const handleCrear = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.warehouse_id) {
-      alert('Selecciona la sede del almacenista');
+      showToast('Selecciona la sede del almacenista', 'error');
       return;
     }
     setEnviando(true);
@@ -107,9 +109,10 @@ export const Usuarios: React.FC = () => {
         warehouse_id: form.warehouse_id,
       });
       setForm({ username: '', email: '', password: '', warehouse_id: '' });
+      showToast('Usuario creado correctamente.', 'success');
       await cargar();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'No se pudo crear el usuario');
+      showToast(error instanceof Error ? error.message : 'No se pudo crear el usuario', 'error');
     } finally {
       setEnviando(false);
     }
@@ -132,9 +135,10 @@ export const Usuarios: React.FC = () => {
         ...(edit.password ? { password: edit.password } : {}),
       });
       setEditando(null);
+      showToast('Usuario actualizado.', 'success');
       await cargar();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'No se pudo actualizar el usuario');
+      showToast(error instanceof Error ? error.message : 'No se pudo actualizar el usuario', 'error');
     } finally {
       setEnviando(false);
     }
@@ -144,18 +148,20 @@ export const Usuarios: React.FC = () => {
     if (!window.confirm(`¿Eliminar a ${u.name || u.email}? Ya no podrá entrar a la plataforma.`)) return;
     try {
       await eliminarUsuario(u.id_user);
+      showToast('Usuario desactivado.', 'success');
       await cargar();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'No se pudo eliminar el usuario');
+      showToast(error instanceof Error ? error.message : 'No se pudo eliminar el usuario', 'error');
     }
   };
 
   const handleReactivar = async (u: Usuario) => {
     try {
       await reactivarUsuario(u.id_user);
+      showToast('Usuario reactivado.', 'success');
       await cargar();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'No se pudo reactivar el usuario');
+      showToast(error instanceof Error ? error.message : 'No se pudo reactivar el usuario', 'error');
     }
   };
 
